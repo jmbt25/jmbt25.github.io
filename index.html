@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mini World — Life Simulation</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Left toolbar ──────────────────────────────────────────────────── -->
+  <aside id="toolbar">
+
+    <div class="tool-section-label">Spawn</div>
+
+    <button class="tool-btn" data-tool="spawn_plant" title="Spawn Plant">
+      🌱<span class="lbl">Plant</span>
+    </button>
+    <button class="tool-btn" data-tool="spawn_herbivore" title="Spawn Herbivore">
+      🐑<span class="lbl">Herb</span>
+    </button>
+    <button class="tool-btn" data-tool="spawn_predator" title="Spawn Predator">
+      🐺<span class="lbl">Pred</span>
+    </button>
+    <button class="tool-btn" data-tool="spawn_human" title="Spawn Human">
+      🧍<span class="lbl">Human</span>
+    </button>
+
+    <div class="tool-section-label">Terrain</div>
+
+    <button class="tool-btn" data-tool="terrain_water" title="Paint Water">
+      <div class="swatch" style="background:var(--c-water)"></div>
+      <span class="lbl">Water</span>
+    </button>
+    <button class="tool-btn" data-tool="terrain_grass" title="Paint Grass">
+      <div class="swatch" style="background:var(--c-grass)"></div>
+      <span class="lbl">Grass</span>
+    </button>
+    <button class="tool-btn" data-tool="terrain_forest" title="Paint Forest">
+      <div class="swatch" style="background:var(--c-forest)"></div>
+      <span class="lbl">Forest</span>
+    </button>
+    <button class="tool-btn" data-tool="terrain_dirt" title="Paint Dirt">
+      <div class="swatch" style="background:var(--c-dirt)"></div>
+      <span class="lbl">Dirt</span>
+    </button>
+    <button class="tool-btn" data-tool="terrain_sand" title="Paint Sand">
+      <div class="swatch" style="background:var(--c-sand)"></div>
+      <span class="lbl">Sand</span>
+    </button>
+    <button class="tool-btn" data-tool="terrain_mountain" title="Paint Mountain">
+      <div class="swatch" style="background:var(--c-mountain)"></div>
+      <span class="lbl">Mount</span>
+    </button>
+
+    <div class="tool-section-label">Tools</div>
+
+    <button class="tool-btn" data-tool="inspect" title="Inspect entity">
+      🔍<span class="lbl">Inspect</span>
+    </button>
+    <button class="tool-btn" data-tool="erase" title="Erase entities">
+      🗑️<span class="lbl">Erase</span>
+    </button>
+
+  </aside>
+
+  <!-- ── Canvas + HUD ──────────────────────────────────────────────────── -->
+  <div id="canvas-container">
+    <canvas id="world-canvas"></canvas>
+
+    <div id="hud">
+      <span class="hud-label">Tick</span>
+      <span class="hud-value" id="stat-tick">0</span>
+
+      <span class="hud-label" style="margin-left:8px">Speed</span>
+      <span class="hud-value" id="stat-speed">1×</span>
+
+      <span class="hud-sep"></span>
+
+      <button class="ctrl-btn" id="btn-pause"      title="Pause">⏸</button>
+      <button class="ctrl-btn" id="btn-speed"      title="Increase speed">2×</button>
+      <button class="ctrl-btn danger" id="btn-regenerate" title="Regenerate world">↺ Regen</button>
+    </div>
+  </div>
+
+  <!-- ── Right sidebar ─────────────────────────────────────────────────── -->
+  <aside id="sidebar">
+
+    <!-- Population counts -->
+    <div class="panel">
+      <div class="panel-title">Population</div>
+
+      <div class="pop-row">
+        <div class="pop-dot" style="background:var(--c-plant)"></div>
+        <span class="pop-label">Plants</span>
+        <span class="pop-count" id="count-plant">0</span>
+      </div>
+      <div class="pop-row">
+        <div class="pop-dot" style="background:var(--c-herbivore)"></div>
+        <span class="pop-label">Herbivores</span>
+        <span class="pop-count" id="count-herbivore">0</span>
+      </div>
+      <div class="pop-row">
+        <div class="pop-dot" style="background:var(--c-predator)"></div>
+        <span class="pop-label">Predators</span>
+        <span class="pop-count" id="count-predator">0</span>
+      </div>
+      <div class="pop-row">
+        <div class="pop-dot" style="background:var(--c-human)"></div>
+        <span class="pop-label">Humans</span>
+        <span class="pop-count" id="count-human">0</span>
+      </div>
+    </div>
+
+    <!-- Population graph -->
+    <div class="panel" style="padding: 8px 0 0;">
+      <div class="panel-title" style="padding: 0 12px;">History</div>
+      <canvas id="graph-canvas" width="220" height="80"></canvas>
+    </div>
+
+    <!-- Inspector -->
+    <div class="panel" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+      <div class="panel-title">Inspector</div>
+      <div id="inspector-body">
+        <div class="inspector-empty">Click an entity<br>to inspect it</div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div id="legend">
+      <div class="legend-row"><div class="legend-dot" style="background:var(--c-herbivore)"></div>Herbivore — eats plants</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--c-predator)"></div>Predator — hunts herbivores &amp; humans</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--c-human)"></div>Human — eats both, flees predators</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--c-plant)"></div>Plant — food source, spreads naturally</div>
+    </div>
+
+  </aside>
+
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
