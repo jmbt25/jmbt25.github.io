@@ -149,7 +149,7 @@ export class Creature extends Entity {
   }
 
   _seekMate(world, registry) {
-    const mate = registry.findNearest(this.type, this.tileX, this.tileY, 8, world);
+    const mate = registry.findNearest(this.type, this.tileX, this.tileY, this.cfg.mateRadius ?? 8, world);
     if (!mate || mate.id === this.id || mate.sex === this.sex || mate.gestating) {
       this._wander(world); return;
     }

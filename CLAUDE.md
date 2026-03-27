@@ -142,6 +142,11 @@ Dependency order (each file only imports from levels above it):
 
 All creatures: age → die, hunger ≥ 1.0 → die, gestating female gives birth after N ticks.
 
+### Population stability mechanisms
+- **Spontaneous plant growth**: every tick, random fertile tile has a chance to grow a new plant (keeps herbivores fed).
+- **Rescue spawning** (SimulationManager): checked every 5 ticks. If predators < 4, ~7% chance to spawn one; if humans < 6, ~9% chance to spawn one. Simulates migration from off-world. Prevents permanent extinction from low-population mate-finding failure.
+- **Mate search radius** is species-configurable (`mateRadius` in SPECIES config). Predators use 14, humans use 12, herbivores default 8. Larger radius compensates for naturally sparser populations.
+
 ---
 
 ## UI layout
@@ -212,6 +217,8 @@ CSS Grid: `grid-template-columns: 56px 1fr 220px` on `#app`.
 | `SIM_TICK_MS`  | 80 ms       | Sim interval (~12 ticks/sec)         |
 | `MAX_ENTITIES` | 2500        | Hard cap across all entity types     |
 | Max plants     | 1200        | Soft cap in SimulationManager        |
+| Predator rescue threshold | < 4 | Rescue spawn kicks in below this count |
+| Human rescue threshold    | < 6 | Rescue spawn kicks in below this count |
 
 ---
 

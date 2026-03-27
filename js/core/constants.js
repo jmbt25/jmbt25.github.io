@@ -34,9 +34,10 @@ export const SPECIES = Object.freeze({
     hungerThreshold:       0.55,
     fleeRadius:            0,
     visionRadius:          9,
-    reproduceThreshold:    0.78,
+    reproduceThreshold:    0.65,
     reproduceEnergyCost:   0.35,
     gestationTicks:        50,
+    mateRadius:            14,
     color:                 '#d04040',
   },
   [TYPE.HUMAN]: {
@@ -49,6 +50,7 @@ export const SPECIES = Object.freeze({
     reproduceThreshold:    0.68,
     reproduceEnergyCost:   0.28,
     gestationTicks:        40,
+    mateRadius:            12,
     color:                 '#e0a870',
   },
 });

@@ -74,6 +74,22 @@ export class SimulationManager {
       }
     }
 
+    // Rescue spawning: prevents predators/humans from going fully extinct.
+    // Simulates occasional migration from off-world. Only triggers when critically low.
+    if (this.tick % 5 === 0) {
+      const counts = this.registry.countByType();
+      if (counts.predator < 4 && Math.random() < 0.07) {
+        const x = Math.floor(Math.random() * this.world.width);
+        const y = Math.floor(Math.random() * this.world.height);
+        if (this.world.isPassable(x, y)) this.registry.spawn(TYPE.PREDATOR, x, y);
+      }
+      if (counts.human < 6 && Math.random() < 0.09) {
+        const x = Math.floor(Math.random() * this.world.width);
+        const y = Math.floor(Math.random() * this.world.height);
+        if (this.world.isPassable(x, y)) this.registry.spawn(TYPE.HUMAN, x, y);
+      }
+    }
+
     // Record history every 10 ticks
     if (this.tick % 10 === 0) this._recordHistory();
 
