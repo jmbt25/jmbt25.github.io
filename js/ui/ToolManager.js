@@ -142,17 +142,43 @@ export class ToolManager {
     }
 
     if (tool === TOOL.INSPECT) {
-      const ids = [...this.world.getEntitiesAt(cx, cy)];
-      // Prefer creatures over plants when multiple are stacked
-      let pick = null;
-      for (const id of ids) {
-        const e = this.registry.get(id);
-        if (!e?.alive) continue;
-        if (!pick) pick = e;
-        else if (e.type !== TYPE.PLANT && pick.type === TYPE.PLANT) pick = e;
-      }
+      const pick = this._pickInspectTarget(cx, cy);
       this.renderer.highlighted = pick || null;
       this.onInspect(pick || null);
     }
+  }
+
+  /**
+   * Pick a creature to inspect. Sim ticks move entities discretely from tile
+   * to tile while the renderer interpolates between them, so the user often
+   * clicks on a tile that's "between" the creature's old and new tile. We
+   * forgive that by searching outward up to 2 tiles, preferring creatures
+   * over plants and the closest one to the click.
+   */
+  _pickInspectTarget(cx, cy) {
+    const RADIUS = 2;
+    let best = null, bestRank = Infinity;
+    for (let dy = -RADIUS; dy <= RADIUS; dy++) {
+      for (let dx = -RADIUS; dx <= RADIUS; dx++) {
+        const x = cx + dx, y = cy + dy;
+        if (!this.world.inBounds(x, y)) continue;
+        const ids = this.world.getEntitiesAt(x, y);
+        if (!ids || !ids.size) continue;
+        for (const id of ids) {
+          const e = this.registry.get(id);
+          if (!e?.alive) continue;
+          // Distance + creature-preference bias. Plants are weighted higher
+          // (worse) so they're only picked when nothing else is around.
+          const dist = Math.abs(dx) + Math.abs(dy);
+          const isPlant = e.type === TYPE.PLANT;
+          const rank = dist + (isPlant ? 5 : 0);
+          if (rank < bestRank) {
+            bestRank = rank;
+            best = e;
+          }
+        }
+      }
+    }
+    return best;
   }
 }

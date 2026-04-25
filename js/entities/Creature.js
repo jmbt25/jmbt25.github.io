@@ -79,16 +79,16 @@ export class Creature extends Entity {
 
   /**
    * Effective ticks between moves. Lower = faster.
-   * Sprinting (FLEE) makes prey panic-fast; predators stalking food shave
-   * one tick off their cadence so a chase reads as urgent. Subclasses can
-   * apply additional buffs on top (Predator's Blood Frenzy in particular).
+   * Sprinting (FLEE / chase / war) shaves a tick or two off cadence so a
+   * chase reads as urgent without making creatures un-clickable. Floor
+   * is 3 ticks (~240ms) so even the fastest sprint stays inspectable.
    */
   _moveInterval() {
     let n = this.cfg.moveEveryNTicks;
     if (this.state === STATE.FLEE) n -= 2;
     else if (this.state === STATE.SEEK_FOOD && this.type === TYPE.PREDATOR) n -= 1;
     else if (this.state === STATE.WAR) n -= 1;
-    return Math.max(1, n);
+    return Math.max(3, n);
   }
 
   _decideState(world, registry) {

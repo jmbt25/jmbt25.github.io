@@ -15,25 +15,29 @@ const DAY_LENGTH_MS = 120_000;
 
 // Time-of-day phase points (0..1). Each entry: phase, sky-top, sky-bottom,
 // sun colour, sun intensity, ambient colour, ambient intensity, fog colour.
+// Each stop: phase, sky-top, sky-bottom, sun colour, sun intensity, ambient
+// colour, ambient intensity, fog colour, MOON intensity (cool-blue fill at
+// night so the world stays readable). Night totals (ambient+moon) sit around
+// 1.0 — visibly darker than the ~2.2 of midday, but bright enough to read.
 const STOPS = [
-  // Night
-  { p: 0.00, top: '#040816', bot: '#0a1428', sun: '#3a4060', sunI: 0.10, amb: '#3a4670', ambI: 0.32, fog: '#080d18' },
+  // Night — moonlit. Sky kept dark, but ambient + moon make the ground read.
+  { p: 0.00, top: '#0a142a', bot: '#15203c', sun: '#3a4060', sunI: 0.05, amb: '#5a72a0', ambI: 0.55, fog: '#0c1426', moonI: 0.75 },
   // Pre-dawn
-  { p: 0.18, top: '#1a1f3a', bot: '#3a3056', sun: '#7a5066', sunI: 0.18, amb: '#5a4a78', ambI: 0.40, fog: '#1c1e34' },
+  { p: 0.18, top: '#1a1f3a', bot: '#3a3056', sun: '#7a5066', sunI: 0.20, amb: '#766a92', ambI: 0.55, fog: '#1c1e34', moonI: 0.45 },
   // Sunrise
-  { p: 0.25, top: '#3a4a78', bot: '#f4a86a', sun: '#ff9a5a', sunI: 0.95, amb: '#a08a82', ambI: 0.55, fog: '#604a48' },
+  { p: 0.25, top: '#3a4a78', bot: '#f4a86a', sun: '#ff9a5a', sunI: 0.95, amb: '#a08a82', ambI: 0.60, fog: '#604a48', moonI: 0.10 },
   // Morning
-  { p: 0.35, top: '#5b88c8', bot: '#cce0e8', sun: '#fff0c8', sunI: 1.30, amb: '#a8b8d0', ambI: 0.65, fog: '#9ab0c4' },
+  { p: 0.35, top: '#5b88c8', bot: '#cce0e8', sun: '#fff0c8', sunI: 1.30, amb: '#a8b8d0', ambI: 0.65, fog: '#9ab0c4', moonI: 0.00 },
   // Midday
-  { p: 0.50, top: '#4a8ad8', bot: '#cee2f0', sun: '#fff4dc', sunI: 1.50, amb: '#bccae0', ambI: 0.70, fog: '#a8c0d8' },
+  { p: 0.50, top: '#4a8ad8', bot: '#cee2f0', sun: '#fff4dc', sunI: 1.50, amb: '#bccae0', ambI: 0.70, fog: '#a8c0d8', moonI: 0.00 },
   // Afternoon
-  { p: 0.65, top: '#6a92c8', bot: '#e8d6b8', sun: '#ffdca8', sunI: 1.30, amb: '#b0a890', ambI: 0.62, fog: '#a89c80' },
+  { p: 0.65, top: '#6a92c8', bot: '#e8d6b8', sun: '#ffdca8', sunI: 1.30, amb: '#b0a890', ambI: 0.60, fog: '#a89c80', moonI: 0.00 },
   // Sunset
-  { p: 0.75, top: '#3a3a6e', bot: '#e88450', sun: '#ff7848', sunI: 1.00, amb: '#866a78', ambI: 0.50, fog: '#5c3a3e' },
+  { p: 0.75, top: '#3a3a6e', bot: '#e88450', sun: '#ff7848', sunI: 1.00, amb: '#866a78', ambI: 0.50, fog: '#5c3a3e', moonI: 0.15 },
   // Dusk
-  { p: 0.82, top: '#1a1f3a', bot: '#4a3260', sun: '#5a3060', sunI: 0.20, amb: '#4a3a64', ambI: 0.42, fog: '#241834' },
+  { p: 0.82, top: '#1a1f3a', bot: '#4a3260', sun: '#5a3060', sunI: 0.20, amb: '#5e5882', ambI: 0.50, fog: '#241834', moonI: 0.45 },
   // Night
-  { p: 1.00, top: '#040816', bot: '#0a1428', sun: '#3a4060', sunI: 0.10, amb: '#3a4670', ambI: 0.32, fog: '#080d18' },
+  { p: 1.00, top: '#0a142a', bot: '#15203c', sun: '#3a4060', sunI: 0.05, amb: '#5a72a0', ambI: 0.55, fog: '#0c1426', moonI: 0.75 },
 ];
 
 const _tmpA = new THREE.Color();
@@ -114,6 +118,28 @@ export class SkySystem {
     this.sunSprite.scale.set(28, 28, 1);
     this.sunSprite.renderOrder = -0.5;
     scene.add(this.sunSprite);
+
+    // Moon (cool-blue directional fill). Without this, night is unreadable.
+    // Positioned opposite the sun so it casts proper shadows from the other side.
+    this.moon = new THREE.DirectionalLight(0xa8c4ff, 0.0);
+    this.moon.castShadow = false;     // single shadow caster (sun) is enough
+    scene.add(this.moon);
+    scene.add(this.moon.target);
+    this.moon.target.position.set(WORLD_WIDTH / 2, 0, WORLD_HEIGHT / 2);
+
+    // Moon visual sprite — soft pale disc
+    const moonSpriteMat = new THREE.SpriteMaterial({
+      map: this._makeRadialTexture('#dcecff'),
+      color: 0xffffff,
+      transparent: true,
+      depthWrite: false,
+      opacity: 0.0,
+      fog: false,
+    });
+    this.moonSprite = new THREE.Sprite(moonSpriteMat);
+    this.moonSprite.scale.set(20, 20, 1);
+    this.moonSprite.renderOrder = -0.5;
+    scene.add(this.moonSprite);
 
     // Ambient fill
     this.ambient = new THREE.AmbientLight(0x6b89b0, 0.55);
@@ -219,6 +245,7 @@ export class SkySystem {
     // Interpolate scalars + colours
     const sunI = a.sunI + (b.sunI - a.sunI) * t;
     const ambI = a.ambI + (b.ambI - a.ambI) * t;
+    const moonI = (a.moonI ?? 0) + ((b.moonI ?? 0) - (a.moonI ?? 0)) * t;
 
     lerpColor(a.top, b.top, t, this._cTop);
     lerpColor(a.bot, b.bot, t, this._cBot);
@@ -260,6 +287,16 @@ export class SkySystem {
     this.sunSprite.position.set(sx, sy, sz);
     this.sunSprite.material.color.copy(this._cSun);
     this.sunSprite.material.opacity = THREE.MathUtils.clamp(sy / 30, 0, 0.95);
+
+    // Moon — opposite the sun. Above horizon at night, below at day.
+    const moonAngle = sunAngle + Math.PI;
+    const mx = cx - Math.cos(moonAngle) * radius * 0.9;
+    const my = Math.sin(moonAngle) * radius * 0.7;
+    const mz = cz;
+    this.moon.position.set(mx, my, mz);
+    this.moon.intensity = moonI;
+    this.moonSprite.position.set(mx, my, mz);
+    this.moonSprite.material.opacity = THREE.MathUtils.clamp(my / 30, 0, 0.85) * (moonI > 0.05 ? 1 : 0);
 
     this.ambient.color.copy(this._cAmb);
     this.ambient.intensity = ambI;

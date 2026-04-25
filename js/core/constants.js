@@ -32,7 +32,7 @@ export const TYPE = Object.freeze({
 export const SPECIES = Object.freeze({
   [TYPE.HERBIVORE]: {
     maxAge:                400,
-    moveEveryNTicks:       3,
+    moveEveryNTicks:       6,
     hungerPerTick:         0.0030,
     hungerThreshold:       0.50,
     fleeRadius:            5,
@@ -45,7 +45,7 @@ export const SPECIES = Object.freeze({
   },
   [TYPE.PREDATOR]: {
     maxAge:                500,
-    moveEveryNTicks:       5,
+    moveEveryNTicks:       8,
     hungerPerTick:         0.0022,
     hungerThreshold:       0.55,
     fleeRadius:            0,
@@ -58,7 +58,7 @@ export const SPECIES = Object.freeze({
   },
   [TYPE.HUMAN]: {
     maxAge:                700,
-    moveEveryNTicks:       3,
+    moveEveryNTicks:       6,
     hungerPerTick:         0.0026,
     hungerThreshold:       0.60,
     fleeRadius:            6,
