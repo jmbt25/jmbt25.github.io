@@ -25,9 +25,8 @@ export class Predator extends Creature {
   }
 
   _moveInterval() {
-    if (this.frenzyTimer > 0) {
-      return Math.max(1, this.cfg.moveEveryNTicks - 2);
-    }
-    return this.cfg.moveEveryNTicks;
+    let n = super._moveInterval();
+    if (this.frenzyTimer > 0) n -= 2;
+    return Math.max(1, n);
   }
 }

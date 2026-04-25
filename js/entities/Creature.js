@@ -2,6 +2,7 @@ import { Entity } from './Entity.js';
 import { SPECIES, SPECIAL_CHANCE, SIM_TICK_MS, TYPE } from '../core/constants.js';
 import { rand, randInt, randDir } from '../core/rng.js';
 import { rollTraitFor } from './traits.js';
+import { eventBus } from '../core/eventBus.js';
 
 export const STATE = Object.freeze({
   WANDER:    'wander',
@@ -76,9 +77,18 @@ export class Creature extends Entity {
     return births;
   }
 
-  /** Effective ticks between moves. Subclasses can override for temporary buffs. */
+  /**
+   * Effective ticks between moves. Lower = faster.
+   * Sprinting (FLEE) makes prey panic-fast; predators stalking food shave
+   * one tick off their cadence so a chase reads as urgent. Subclasses can
+   * apply additional buffs on top (Predator's Blood Frenzy in particular).
+   */
   _moveInterval() {
-    return this.cfg.moveEveryNTicks;
+    let n = this.cfg.moveEveryNTicks;
+    if (this.state === STATE.FLEE) n -= 2;
+    else if (this.state === STATE.SEEK_FOOD && this.type === TYPE.PREDATOR) n -= 1;
+    else if (this.state === STATE.WAR) n -= 1;
+    return Math.max(1, n);
   }
 
   _decideState(world, registry) {
@@ -152,6 +162,7 @@ export class Creature extends Entity {
     const nutrition = food.nutrition ?? 0.55;
     this.hunger = Math.max(0, this.hunger - nutrition);
     this.energy = Math.min(1, this.energy + nutrition * 0.4);
+    eventBus.emit('entity:ate', { eater: this, food });
   }
 
   _flee(world, registry) {

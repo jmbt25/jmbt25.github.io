@@ -156,6 +156,21 @@ The user's intent is for this to be their GitHub Page for now, with a separate p
     │   │                          SkySystem phase to fade them in at dusk and out at
     │   │                          dawn. scatter() places them on suitable tiles after
     │   │                          worldgen / regen.
+    │   ├── StatusBubbles.js    ← Camera-facing glyph badges (! ♥ ⚔ ⚒ + … z) that float
+    │   │                          above every creature whose AI state warrants one.
+    │   │                          One InstancedMesh per glyph kind with a custom
+    │   │                          billboard shader (vertex shader puts the plane in
+    │   │                          view space and offsets in screen XY). Mirrors the
+    │   │                          entity renderer's prevTile→tile lerp so bubbles
+    │   │                          track sliding bodies.
+    │   ├── EffectsSystem.js    ← Short-lived particle bursts driven by eventBus
+    │   │                          subscriptions: entity:born → green life sparkles,
+    │   │                          entity:died → grey puff, entity:ate → green leaves
+    │   │                          (plant) or red splatter (meat), entity:attacked
+    │   │                          → yellow combat sparks. Continuously emits brown
+    │   │                          footstep dust for sprinting creatures (flee /
+    │   │                          frenzy). Single GPU Points with per-particle
+    │   │                          colour, allocation-free per frame.
     │   └── Renderer3D.js       ← Owns WebGLRenderer (ACES tonemap, sRGB output, PCF
     │                              soft shadows enabled), Scene (with fog), Camera3D,
     │                              SkySystem, TerrainDecorations, WaterPlane,
@@ -325,6 +340,21 @@ All creatures: age → die, hunger ≥ 1.0 → die, gestating female gives birth
 - **Spontaneous plant growth** on fertile tiles every tick.
 - **Rescue spawning** every 5 ticks: if predator < 4 (~7%) or human < 6 (~9%), spawn one. Simulates migration.
 - **Mate radius** species-tunable (predators 14, humans 12, herbivores 8). Sharp Eye trait extends it further.
+
+### Movement urgency (Creature._moveInterval)
+Sprint physics is built into the base move interval rather than per-state code:
+- FLEE → -2 ticks (panic burst)
+- SEEK_FOOD as a predator → -1 (stalk pace)
+- WAR (humans) → -1 (charge)
+- Predator's Blood Frenzy stacks an additional -2 on top after a kill
+The renderer reads `state` and `frenzyTimer` to pick a "sprinting" sway/bob magnitude, and EffectsSystem emits dust at the feet of any creature whose state qualifies as a sprint.
+
+### Sim → render event surface
+Renderer-side effects subscribe to:
+- `entity:born`     ({ entity, parent, builder })
+- `entity:died`     (entity)
+- `entity:ate`      ({ eater, food })          — emitted in Creature._eat
+- `entity:attacked` ({ attacker, target, killed })  — emitted in Human._attackEnemy
 
 ---
 

@@ -7,6 +7,8 @@ import { SkySystem } from './SkySystem.js';
 import { WaterPlane } from './WaterPlane.js';
 import { ParticleSystem } from './ParticleSystem.js';
 import { Fireflies } from './Fireflies.js';
+import { StatusBubbles } from './StatusBubbles.js';
+import { EffectsSystem } from './EffectsSystem.js';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../core/constants.js';
 
 export class Renderer3D {
@@ -48,6 +50,8 @@ export class Renderer3D {
     this.waterPlane       = new WaterPlane();
     this.particles        = new ParticleSystem();
     this.fireflies        = new Fireflies();
+    this.statusBubbles    = new StatusBubbles();
+    this.effects          = new EffectsSystem(this.tileRenderer3d, registry);
 
     // The sky's directional sun casts shadows. Set up shadow camera bounds once.
     const sun = this.skySystem.sun;
@@ -69,8 +73,10 @@ export class Renderer3D {
     this.scene.add(this.waterPlane.mesh);
     this.scene.add(this.particles.points);
     this.scene.add(this.fireflies.points);
+    this.scene.add(this.effects.points);
     for (const m of this.decorations.allMeshes) this.scene.add(m);
     for (const m of this.entityRenderer3d.allMeshes) this.scene.add(m);
+    for (const m of this.statusBubbles.allMeshes) this.scene.add(m);
     this.scene.add(this.entityRenderer3d.highlight);
 
     this.tileRenderer3d.rebuild(world);
@@ -102,6 +108,8 @@ export class Renderer3D {
     this.waterPlane.update();
     this.particles.update(this.registry, this.tileRenderer3d);
     this.fireflies.update(this.skySystem.getPhase());
+    this.statusBubbles.update(this.registry, this.tileRenderer3d);
+    this.effects.update();
     this.webglRenderer.render(this.scene, this.camera3d.camera);
   }
 

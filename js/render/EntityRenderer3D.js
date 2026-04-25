@@ -383,14 +383,23 @@ export class EntityRenderer3D {
       const tileY = Math.round(fz);
       const elev = tileRenderer3d.getElevationAt(tileX, tileY);
 
-      // Walk bob: bigger and more rhythmic for visible cadence
-      const bob = isMoving ? Math.abs(Math.sin(now * 0.018 + ent.id * 0.13)) * 0.07 : 0;
+      // Sprinting? (flee or predator frenzy) — bigger body language.
+      const sprinting = ent.state === 'flee' || ent.frenzyTimer > 0;
+      const bobMag  = sprinting ? 0.13 : 0.07;
+      const swayMag = sprinting ? 0.22 : 0.10;
+      // Walking gait — bob is the foot-fall up/down
+      const bob = isMoving ? Math.abs(Math.sin(now * 0.022 + ent.id * 0.13)) * bobMag : 0;
       // Idle breathing for stationary creatures (not plants/buildings)
       const breath = (!isMoving && ent.type !== TYPE.PLANT && ent.type !== TYPE.BUILDING)
         ? Math.sin(nowSec * 1.6 + ent.id * 0.7) * 0.012
         : 0;
-      // Walking sway: slight Z-axis roll while moving
-      const sway = isMoving ? Math.sin(now * 0.020 + ent.id * 0.23) * 0.10 : 0;
+      // Walking sway: pitching forward/back as feet hit the ground
+      const sway = isMoving ? Math.sin(now * 0.022 + ent.id * 0.23) * swayMag : 0;
+      // Idle look-around: stationary creatures slowly drift their heading.
+      // Tiny — just enough to sell that they're alive, not statues.
+      const lookAround = (!isMoving && ent.type !== TYPE.PLANT && ent.type !== TYPE.BUILDING)
+        ? Math.sin(nowSec * 0.45 + ent.id * 1.7) * 0.18
+        : 0;
 
       const x = fx + 0.5;
       const z = fz + 0.5;
@@ -402,9 +411,20 @@ export class EntityRenderer3D {
         s = scale * (0.5 + ent.stage * 0.30);
       }
 
-      this._dummy.position.set(x, y, z);
-      // Heading rotation (Y) + a small Z roll for walking sway
-      this._dummy.rotation.set(0, -((ent.heading ?? 0)), sway);
+      // Plants sway in the wind: gentle Z roll + tiny X tilt, no heading.
+      if (ent.type === TYPE.PLANT) {
+        const wind = Math.sin(nowSec * 0.9 + ent.id * 0.4) * 0.10;
+        const wind2 = Math.sin(nowSec * 1.3 + ent.id * 0.7) * 0.06;
+        this._dummy.position.set(x, y, z);
+        this._dummy.rotation.set(wind2, 0, wind);
+      } else if (ent.type === TYPE.BUILDING) {
+        this._dummy.position.set(x, y, z);
+        this._dummy.rotation.set(0, 0, 0);
+      } else {
+        this._dummy.position.set(x, y, z);
+        // Heading + idle look-around (Y) and walking pitch (Z)
+        this._dummy.rotation.set(0, -((ent.heading ?? 0)) + lookAround, sway);
+      }
       this._dummy.scale.set(s, s, s);
       this._dummy.updateMatrix();
 

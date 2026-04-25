@@ -3,6 +3,7 @@ import { TYPE, JOSHUA_NAME, JOSHUA_INHERIT_NAME_CHANCE, JOSHUA_INHERIT_SKILL_CHA
 import { rand, randInt } from '../core/rng.js';
 import { rollSpontaneousName, pickOrdinaryName, isJoshua } from './names.js';
 import { rollSkill, getSkillById } from './skills.js';
+import { eventBus } from '../core/eventBus.js';
 
 /**
  * Human extends Creature with civilization behaviours:
@@ -154,12 +155,14 @@ export class Human extends Creature {
         const dmg = (this.strength || 1) + rand() * 0.5;
         // No HP system on creatures yet — apply chance-based kill weighted by relative strength
         const targetStrength = target.strength || 1;
-        if (rand() < 0.55 + (dmg - targetStrength) * 0.18) {
+        const killed = rand() < 0.55 + (dmg - targetStrength) * 0.18;
+        if (killed) {
           target.alive = false;
           this.hunger = Math.max(0, this.hunger - 0.15); // looting / morale
           this.energy = Math.min(1, this.energy + 0.1);
         }
         this.attackCooldown = this.cfg.huntCooldownTicks ?? 8;
+        eventBus.emit('entity:attacked', { attacker: this, target, killed });
       }
     } else {
       this._stepToward(world, target.tileX, target.tileY);
