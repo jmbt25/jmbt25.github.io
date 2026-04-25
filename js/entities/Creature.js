@@ -66,14 +66,19 @@ export class Creature extends Entity {
       }
     }
 
-    // Throttle movement to cfg.moveEveryNTicks
+    // Throttle movement to the (possibly buffed) effective move interval
     this.moveClock++;
-    if (this.moveClock < this.cfg.moveEveryNTicks) return births;
+    if (this.moveClock < this._moveInterval()) return births;
     this.moveClock = 0;
 
     this._decideState(world, registry);
     this._act(world, registry, births);
     return births;
+  }
+
+  /** Effective ticks between moves. Subclasses can override for temporary buffs. */
+  _moveInterval() {
+    return this.cfg.moveEveryNTicks;
   }
 
   _decideState(world, registry) {
@@ -209,7 +214,7 @@ export class Creature extends Entity {
     this.prevTileX     = this.tileX;
     this.prevTileY     = this.tileY;
     this.moveStartedAt = performance.now();
-    this.moveDurationMs = SIM_TICK_MS * this.cfg.moveEveryNTicks;
+    this.moveDurationMs = SIM_TICK_MS * this._moveInterval();
 
     const dx = nx - this.tileX;
     const dy = ny - this.tileY;

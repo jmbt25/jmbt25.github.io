@@ -8,6 +8,15 @@ export const MAX_ENTITIES = 2500;
 // Chance a newborn creature is "special" with a unique trait
 export const SPECIAL_CHANCE = 0.05;
 
+// "Skill" system — only humans named Joshua manifest a skill.
+// JOSHUA_SPONTANEOUS_CHANCE: chance any new human (no Joshua parent) is named Joshua.
+// JOSHUA_INHERIT_NAME_CHANCE: chance a Joshua's offspring is also named Joshua.
+// JOSHUA_INHERIT_SKILL_CHANCE: if the offspring is named Joshua, chance their skill matches the parent's (otherwise rerolled).
+export const JOSHUA_NAME = 'Joshua';
+export const JOSHUA_SPONTANEOUS_CHANCE  = 0.04;
+export const JOSHUA_INHERIT_NAME_CHANCE = 0.65;
+export const JOSHUA_INHERIT_SKILL_CHANCE = 0.80;
+
 // Entity type strings
 export const TYPE = Object.freeze({
   PLANT:     'plant',

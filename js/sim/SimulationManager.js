@@ -34,6 +34,11 @@ export class SimulationManager {
           ? this.civ.getTribe(builder.tribeId)
           : null;
         if (tribe) this.civ.registerHut(entity, tribe);
+        // Architect skill (Joshua-only): the hut starts with extra HP
+        if (builder?.architectHutHp) {
+          entity.maxHp = builder.architectHutHp;
+          entity.hp    = builder.architectHutHp;
+        }
       }
     });
 

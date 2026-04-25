@@ -42,18 +42,37 @@ The user's intent is for this to be their GitHub Page for now, with a separate p
     │   │                          Alpha, Sage, Warrior) + rollTraitFor(type). Each trait
     │   │                          has apply(creature) which mutates a per-instance cfg
     │   │                          clone (ensureOwnCfg) and/or instance fields.
+    │   ├── names.js            ← Human name pool. rollSpontaneousName() returns a random
+    │   │                          ordinary name OR (small chance) "Joshua". isJoshua().
+    │   ├── skills.js           ← SKILLS table (Pathfinder, Architect, Ascendant,
+    │   │                          Patriarch, Champion). Joshua-only. Same apply(creature)
+    │   │                          contract as traits but with stronger effects.
+    │   │                          getSkillById(id) used for genetic inheritance.
     │   ├── Plant.js            ← Stationary. Ages, grows through 3 stages, spreads seeds.
+    │   │                          Bloom buff: ages 40% slower on FOREST tiles, spreads
+    │   │                          ~75% more often on GRASS tiles.
     │   ├── Creature.js         ← Mobile creature base. Priority states:
     │   │                          FLEE > SEEK_FOOD > SEEK_MATE > WANDER. _tryStep()
     │   │                          records prev tile + heading + move time so the renderer
     │   │                          can interpolate motion smoothly between tiles.
     │   │                          Constructor rolls SPECIAL_CHANCE for a trait.
-    │   ├── Herbivore.js        ← Thin subclass of Creature.
-    │   ├── Predator.js         ← Thin subclass of Creature.
+    │   │                          Subclasses can override _moveInterval() for transient
+    │   │                          speed buffs (used by Predator's blood frenzy).
+    │   ├── Herbivore.js        ← Subclass of Creature with "Herd Instinct" species
+    │   │                          buff: when in FLEE state with ≥2 herbivores within
+    │   │                          3 tiles, takes a second flee step that tick.
+    │   ├── Predator.js         ← Subclass of Creature with "Blood Frenzy" species
+    │   │                          buff: after a successful kill, frenzyTimer = 40,
+    │   │                          which reduces _moveInterval() by 2 ticks until it
+    │   │                          decays. Renderer tints the body red while active.
     │   ├── Human.js            ← Extends Creature with civ behaviours: WAR (attack
     │   │                          enemy-tribe humans), BUILD (place hut), SEEK_HOME
     │   │                          (drift toward tribe centroid). civ ref injected at
     │   │                          birth by SimulationManager via 'entity:born' event.
+    │   │                          Constructor takes optional parent — _assignIdentity()
+    │   │                          rolls a name (with Joshua inheritance/spontaneous
+    │   │                          chance) and applies a Joshua-only skill if applicable.
+    │   │                          tick() recomputes strength each tick if Ascendant.
     │   ├── Building.js         ← Static entity (huts). Has hp/maxHp + slow age decay.
     │   │                          Owned by a tribe (tribeId).
     │   └── EntityRegistry.js   ← Authoritative entity store (Map<id, Entity>).
@@ -157,6 +176,26 @@ The user's intent is for this to be their GitHub Page for now, with a separate p
   - Herbivore: Swift, Hardy, Giant, Sharp Eye, Fertile
   - Predator: Swift, Hardy, Giant, Sharp Eye, Alpha, Warrior
   - Human: Swift, Hardy, Sharp Eye, Fertile, Sage, Warrior, Giant
+
+### Joshua skills (Joshua-only, genetic)
+- Every newly-spawned human gets a `name`. Names come from `names.js`. Most are ordinary; humans named exactly `Joshua` are the only ones who manifest a `skill`.
+- **Spontaneous Joshuas**: any human born without a Joshua parent has a 4% chance of being named Joshua and rolling a random skill.
+- **Inherited Joshuas**: humans born to a Joshua parent have a 65% chance of also being named Joshua. If named Joshua, they have an 80% chance to inherit the parent's exact skill (otherwise reroll). This produces "Joshua dynasties" that drift skills slowly across generations.
+- Skills (`js/entities/skills.js`):
+  - **Pathfinder** — vision +5, mate radius +4, moves one tick faster.
+  - **Architect** — `buildCooldown 30` (vs 80) + `architectHutHp = 200` so SimulationManager doubles the new hut's HP on `entity:born`. Build energy cost halved.
+  - **Ascendant** — `Human.tick()` recomputes `strength = baseStrength + min(4, age/100)` each tick, plus +25% max age.
+  - **Patriarch** — fast gestation, low reproduce threshold, `canFoundTribe = true`.
+  - **Champion** — strength = 3, halved hunt cooldown, `fleeRadius = 0`, +3 vision, scale 1.2+.
+- Skills stack with traits — a Joshua may also be Sage/Warrior/etc.
+- Renderer: Joshuas get a slow-spinning cyan torus ring at their feet (`skillMarker`) plus a cyan body tint. The trait octahedron above the head is unchanged so the two systems don't clash.
+- Inspector shows `Name` for all humans and `Skill` for Joshuas.
+
+### Species specialties (always-on per species)
+- **Plants** — Bloom: forest-tile plants age 40% slower; grass-tile plants spread seeds 75% more often.
+- **Herbivores** — Herd Instinct: in FLEE state, with ≥2 other herbivores within 3 tiles, take a second flee step that tick.
+- **Predators** — Blood Frenzy: 40-tick speed buff (move every `n-2` ticks instead of `n`) after every successful `_eat()`. Body tinted red while active.
+- **Humans** — Joshua skill system (above) + tribes/diplomacy.
 
 ### Spatial indexing
 - `World.tileEntities[idx(x,y)]` is `Set<entityId>`. Every move updates this via `world.moveEntityRecord(entity, nx, ny)`.
@@ -268,6 +307,9 @@ Tribe colors come from `TRIBE_COLORS` in `constants.js` (8 distinct hues, slot 0
 | `SIM_TICK_MS`       | 80 ms     | Sim interval (~12 ticks/sec)                           |
 | `MAX_ENTITIES`      | 2500      | Hard cap; also InstancedMesh capacity per part         |
 | `SPECIAL_CHANCE`    | 0.05      | Probability of any newborn being a special trait holder |
+| `JOSHUA_SPONTANEOUS_CHANCE`   | 0.04 | Chance any human born without a Joshua parent is named Joshua |
+| `JOSHUA_INHERIT_NAME_CHANCE`  | 0.65 | Chance a Joshua's offspring is also named Joshua |
+| `JOSHUA_INHERIT_SKILL_CHANCE` | 0.80 | If the offspring is Joshua, chance their skill matches the parent's |
 | Max plants          | 1200      | Soft cap in SimulationManager                          |
 | Predator rescue     | < 4       | Rescue spawn kicks in below this count                 |
 | Human rescue        | < 6       | Rescue spawn kicks in below this count                 |

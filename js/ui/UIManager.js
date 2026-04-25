@@ -84,8 +84,11 @@ export class UIManager {
 
     const rows = [
       ['Type',  entity.kind ?? entity.type],
-      ['Age',   entity.age],
+      ['Age',   Math.floor(entity.age)],
     ];
+    if (entity.name) {
+      rows.push(['Name', entity.name]);
+    }
     if (entity.hp        !== undefined && entity.maxHp !== undefined) {
       rows.push(['HP', `${entity.hp}/${entity.maxHp}`]);
     }
@@ -111,6 +114,9 @@ export class UIManager {
 
     if (entity.trait) {
       rows.push(['Trait', `<span style="color:#ffd34d">★ ${entity.trait.name}</span> — ${entity.trait.desc}`]);
+    }
+    if (entity.skill) {
+      rows.push(['Skill', `<span style="color:#5fd8ff">◆ ${entity.skill.name}</span> — ${entity.skill.desc}`]);
     }
 
     panel.innerHTML = rows.map(([k, v]) =>

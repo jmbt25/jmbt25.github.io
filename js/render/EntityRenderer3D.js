@@ -144,6 +144,9 @@ const HUNGRY_TINT     = new THREE.Color('#202020');
 const GESTATING_TINT  = new THREE.Color('#ff80a0');
 const TRAIT_TINT      = new THREE.Color('#ffd34d');
 const TRAIT_GLOW      = new THREE.Color('#fff0a0');
+const SKILL_TINT      = new THREE.Color('#5fd8ff');
+const SKILL_GLOW      = new THREE.Color('#9fe8ff');
+const FRENZY_TINT     = new THREE.Color('#ff4040');
 
 // ── Renderer ──────────────────────────────────────────────────────────────
 
@@ -212,6 +215,20 @@ export class EntityRenderer3D {
       new Float32Array(MAX_ENTITIES * 3), 3
     );
 
+    // Skill marker: a flat cyan torus that hovers at the feet of Joshuas.
+    // Sits on the ground so it doesn't clash with the gold trait octahedron above the head.
+    const sg = new THREE.TorusGeometry(0.36, 0.05, 6, 18);
+    sg.rotateX(-Math.PI / 2);
+    sg.translate(0, 0.04, 0);
+    const sm = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, depthTest: true });
+    this.skillMarker = new THREE.InstancedMesh(sg, sm, MAX_ENTITIES);
+    this.skillMarker.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.skillMarker.frustumCulled = false;
+    this.skillMarker.count = 0;
+    this.skillMarker.instanceColor = new THREE.InstancedBufferAttribute(
+      new Float32Array(MAX_ENTITIES * 3), 3
+    );
+
     // Highlight ring for the inspected entity
     const ringGeom = new THREE.TorusGeometry(0.55, 0.06, 6, 18);
     ringGeom.rotateX(-Math.PI / 2);
@@ -228,6 +245,7 @@ export class EntityRenderer3D {
       for (const p of parts) this.allMeshes.push(p.mesh);
     }
     this.allMeshes.push(this.traitMarker);
+    this.allMeshes.push(this.skillMarker);
   }
 
   /** Per-frame: sync instance matrices and colors from the entity registry. */
@@ -240,6 +258,7 @@ export class EntityRenderer3D {
       [TYPE.HUMAN]: 0, [TYPE.BUILDING]: 0,
     };
     let traitCount = 0;
+    let skillCount = 0;
 
     for (const ent of registry.getAll()) {
       if (!ent.alive) continue;
@@ -299,6 +318,17 @@ export class EntityRenderer3D {
         this.traitMarker.setColorAt(traitCount, TRAIT_GLOW);
         traitCount++;
       }
+
+      // Skill marker — cyan ground ring for humans named Joshua
+      if (ent.skill && skillCount < MAX_ENTITIES) {
+        this._dummy.position.set(x, y + 0.01, z);
+        this._dummy.rotation.set(0, now * 0.0015, 0);
+        this._dummy.scale.set(s, s, s);
+        this._dummy.updateMatrix();
+        this.skillMarker.setMatrixAt(skillCount, this._dummy.matrix);
+        this.skillMarker.setColorAt(skillCount, SKILL_GLOW);
+        skillCount++;
+      }
     }
 
     // Apply counts + flag GPU upload
@@ -313,6 +343,9 @@ export class EntityRenderer3D {
     this.traitMarker.count = traitCount;
     this.traitMarker.instanceMatrix.needsUpdate = true;
     if (this.traitMarker.instanceColor) this.traitMarker.instanceColor.needsUpdate = true;
+    this.skillMarker.count = skillCount;
+    this.skillMarker.instanceMatrix.needsUpdate = true;
+    if (this.skillMarker.instanceColor) this.skillMarker.instanceColor.needsUpdate = true;
   }
 
   _colorForPart(ent, role) {
@@ -348,8 +381,12 @@ export class EntityRenderer3D {
     if (role === 'body') {
       if (ent.gestating) c.lerp(GESTATING_TINT, 0.45);
       else if (ent.hunger !== undefined && ent.hunger > 0.7) c.lerp(HUNGRY_TINT, 0.35);
+      // Predator blood frenzy: redder while the buff is active
+      if (ent.frenzyTimer > 0) c.lerp(FRENZY_TINT, 0.30);
       // Special trait gives a slight gold sheen on the body
       if (ent.trait) c.lerp(TRAIT_TINT, 0.18);
+      // Joshua skill gives a cyan-blue sheen on the body
+      if (ent.skill) c.lerp(SKILL_TINT, 0.22);
     }
     return c;
   }

@@ -1,6 +1,8 @@
 import { Creature, STATE } from './Creature.js';
-import { TYPE } from '../core/constants.js';
+import { TYPE, JOSHUA_NAME, JOSHUA_INHERIT_NAME_CHANCE, JOSHUA_INHERIT_SKILL_CHANCE } from '../core/constants.js';
 import { rand, randInt } from '../core/rng.js';
+import { rollSpontaneousName, pickOrdinaryName, isJoshua } from './names.js';
+import { rollSkill, getSkillById } from './skills.js';
 
 /**
  * Human extends Creature with civilization behaviours:
@@ -8,16 +10,57 @@ import { rand, randInt } from '../core/rng.js';
  *   - attacks members of hostile tribes on sight (WAR state)
  *   - returns to a tribe hut periodically to rest (SEEK_HOME state)
  *   - well-fed humans may build new huts (BUILD state)
+ *   - has a name; humans named "Joshua" manifest a unique skill,
+ *     and pass both their name and skill to offspring with high probability
  *
  * The CivilizationManager is injected via Human.civ (set by SimulationManager
  * before each tick). This avoids polluting the Creature signature for non-humans.
  */
 export class Human extends Creature {
-  constructor(tileX, tileY) {
+  constructor(tileX, tileY, parent = null) {
     super(TYPE.HUMAN, tileX, tileY);
     this.attackCooldown = 0;
     this.builtSinceTick = -9999; // last tick a hut was placed (rate limit)
     this.canFoundTribe  = this.canFoundTribe || false;
+    this.buildCooldown  = 80;    // overridable by Architect skill
+    this._assignIdentity(parent);
+  }
+
+  _assignIdentity(parent) {
+    // Names + skill inheritance from parent (if any)
+    let name, skill = null;
+    if (parent && isJoshua(parent.name)) {
+      // Joshua bloodline — high chance of perpetuating the name
+      if (rand() < JOSHUA_INHERIT_NAME_CHANCE) {
+        name = JOSHUA_NAME;
+        // Inherit parent's exact skill most of the time
+        if (parent.skill && rand() < JOSHUA_INHERIT_SKILL_CHANCE) {
+          skill = getSkillById(parent.skill.id);
+        } else {
+          skill = rollSkill();
+        }
+      } else {
+        name = pickOrdinaryName();
+      }
+    } else {
+      // No Joshua parent — small chance of spontaneous emergence
+      name = rollSpontaneousName();
+      if (isJoshua(name)) skill = rollSkill();
+    }
+
+    this.name = name;
+    if (skill) {
+      this.skill = { id: skill.id, name: skill.name, desc: skill.desc };
+      skill.apply(this);
+    }
+  }
+
+  tick(world, registry) {
+    // Ascendant: strength scales with age, capped.
+    if (this.ascendant) {
+      this.strength = (this.baseStrength ?? 1) + Math.min(4, this.age / 100);
+    }
+    return super.tick(world, registry);
   }
 
   // Override the base decision tree to slot in civ states.
@@ -34,9 +77,10 @@ export class Human extends Creature {
       }
     }
 
-    // 2. Hunt enemy tribe members. Warriors don't need to be hungry to hunt.
+    // 2. Hunt enemy tribe members. Warriors / Champions don't need to be hungry to hunt.
     if (civ && this.tribeId != null) {
-      const lookRadius = this.trait?.id === 'warrior' ? this.cfg.visionRadius + 2 : this.cfg.visionRadius;
+      const isCombatFocused = this.trait?.id === 'warrior' || this.skill?.id === 'champion';
+      const lookRadius = isCombatFocused ? this.cfg.visionRadius + 2 : this.cfg.visionRadius;
       const enemy = civ.findEnemyHumanNear(this, lookRadius);
       if (enemy) {
         this.state    = STATE.WAR;
@@ -124,7 +168,7 @@ export class Human extends Creature {
 
   _canBuildHere(world) {
     // No recently built; not on water; standing on grass/dirt
-    if (this.age - this.builtSinceTick < 80) return false;
+    if (this.age - this.builtSinceTick < this.buildCooldown) return false;
     const t = world.getTerrain(this.tileX, this.tileY);
     // 2=grass, 3=forest, 4=dirt — accept these
     return t === 2 || t === 3 || t === 4;

@@ -35,7 +35,7 @@ export class EntityRegistry {
       case TYPE.PLANT:     entity = new Plant(x, y);     break;
       case TYPE.HERBIVORE: entity = new Herbivore(x, y); break;
       case TYPE.PREDATOR:  entity = new Predator(x, y);  break;
-      case TYPE.HUMAN:     entity = new Human(x, y);     break;
+      case TYPE.HUMAN:     entity = new Human(x, y, opts.parent ?? null); break;
       case TYPE.BUILDING:  entity = new Building(x, y);  break;
       default: return null;
     }
