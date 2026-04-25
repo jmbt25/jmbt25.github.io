@@ -13,17 +13,17 @@ import { Renderer3D }           from './render/Renderer3D.js';
 import { UIManager }            from './ui/UIManager.js';
 import { SIM_TICK_MS, TYPE }    from './core/constants.js';
 
-const canvas    = document.getElementById('world-canvas');
+const canvas = document.getElementById('world-canvas');
 resizeCanvas();
 
-const world     = new World();
-const registry  = new EntityRegistry(world);
+const world    = new World();
+const registry = new EntityRegistry(world);
 
 WorldGen.generate(world);
 
-const renderer  = new Renderer3D(canvas, world, registry);
-const civ       = new CivilizationManager(registry, world);
-renderer.civ    = civ;
+const renderer = new Renderer3D(canvas, world, registry);
+const civ      = new CivilizationManager(registry, world);
+renderer.civ   = civ;
 
 const sim = new SimulationManager(world, registry, civ);
 
@@ -35,6 +35,7 @@ let simInterval = setInterval(() => sim.update(), SIM_TICK_MS);
 
 function renderLoop() {
   renderer.render();
+  ui.tickFrame();
   requestAnimationFrame(renderLoop);
 }
 requestAnimationFrame(renderLoop);

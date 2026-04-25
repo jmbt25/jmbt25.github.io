@@ -98,40 +98,85 @@ The user's intent is for this to be their GitHub Page for now, with a separate p
     │                                findEnemyHumanNear(human, radius) used by Human AI.
     ├── render/                  ← All Three.js code. Imports via importmap.
     │   ├── Camera3D.js         ← THREE.PerspectiveCamera + OrbitControls. Left-click +
-    │   │                          single-finger touch are reserved for ToolManager.
-    │   ├── TileRenderer3D.js   ← Single BufferGeometry mesh for terrain. Vertex Y is
-    │   │                          biome elevation; vertex colors averaged from up to 4
-    │   │                          adjacent tiles. flatShading for low-poly look.
-    │   │                          Owns the cursor mesh and getElevationAt(tx,ty).
-    │   ├── EntityRenderer3D.js ← One InstancedMesh per BODY PART per type — creatures
-    │   │                          are composite (e.g. herbivore = body+legs+tail merged
-    │   │                          via BufferGeometryUtils.mergeGeometries, plus a head
-    │   │                          mesh). Per frame, each entity gets ONE shared transform
-    │   │                          matrix applied to all its parts. Position interpolated
-    │   │                          smoothly between prevTile and current tile using a
-    │   │                          smoothstep curve over moveDurationMs. Rotation is
-    │   │                          rotation.y = -entity.heading (atan2(dz, dx)). Bob
-    │   │                          while moving. Humans tinted by tribe color (huts get
-    │   │                          a tribe-coloured roof). Special creatures get a slight
-    │   │                          gold tint + spinning octahedron marker above their head.
-    │   │                          Highlight = white torus ring. allMeshes flat list for
-    │   │                          scene.add().
-    │   └── Renderer3D.js       ← Owns WebGLRenderer, Scene, fog, lights (ambient + warm
-    │                              directional sun + sky/ground hemisphere). Owns Camera3D
-    │                              and the two sub-renderers. Holds a `civ` ref injected
-    │                              by main.js so the entity renderer can look up tribe
-    │                              colors. Exposes render(), resize(w,h), rebuildTerrain(),
-    │                              setCursorTile/clearCursor, raycastTile(screenX, screenY).
+    │   │                          single-finger touch reserved for ToolManager. Exposes
+    │   │                          resetToDefault() (animated lerp back) and panTo(x,z)
+    │   │                          (smooth pan target — used by minimap click).
+    │   ├── TileRenderer3D.js   ← Terrain BufferGeometry; vertex Y = biome elevation,
+    │   │                          colors averaged from neighbouring tiles. Cursor is a
+    │   │                          plane + EdgesGeometry outline; setCursorTile accepts
+    │   │                          a brushSize so paint preview matches the slider.
+    │   ├── EntityRenderer3D.js ← One InstancedMesh per BODY PART per type. Each creature
+    │   │                          type now has body + head + EYES (a merged pair of
+    │   │                          small dark spheres). Buildings have walls + tribe-
+    │   │                          coloured roof + door panel. Idle creatures breathe
+    │   │                          (uniform-scale sway); moving ones bob. Trait octahedron
+    │   │                          and Joshua skill ring both pulse for visibility, and
+    │   │                          the highlight torus around the inspected entity also
+    │   │                          pulses. allMeshes flat list for scene.add().
+    │   ├── SkySystem.js        ← Procedural day/night cycle (~120s wall-time per day).
+    │   │                          Vertex-coloured sphere sky dome interpolated through 9
+    │   │                          phase stops (night → dawn → midday → dusk). Drives the
+    │   │                          DirectionalLight sun position/colour, sun-disc Sprite,
+    │   │                          ambient + hemisphere lights, scene fog colour, and a
+    │   │                          star Points field that fades in at night. Tracks
+    │   │                          dayCount; getTimeLabel() yields "Morning"/"Dusk"/etc.
+    │   │                          for the HUD.
+    │   ├── WaterPlane.js       ← Animated translucent ShaderMaterial plane at y = -1.2
+    │   │                          (just above the terrain WATER dip). Vertex shader
+    │   │                          generates sin-wave displacement; fragment paints
+    │   │                          depth-blended base + animated specular streaks tinted
+    │   │                          to current sky/fog colour.
+    │   ├── ParticleSystem.js   ← Pool of 480 GPU points drifting up as smoke from every
+    │   │                          alive Building. Soft-disc shader, fade in/out by
+    │   │                          life ratio, allocation-free per frame. setColor() lets
+    │   │                          renderer match smoke to sky colour.
+    │   └── Renderer3D.js       ← Owns WebGLRenderer (ACES tonemap, sRGB output), Scene
+    │                              (with fog), Camera3D, SkySystem, WaterPlane,
+    │                              ParticleSystem, and the terrain/entity sub-renderers.
+    │                              Each frame: skySystem.update → propagate sky colour to
+    │                              water highlight + smoke tint → entity update → water
+    │                              update → particle update → render. Exposes render(),
+    │                              resize(), rebuildTerrain(), setCursorTile(tx,ty,brush)/
+    │                              clearCursor, raycastTile(x,y), resetCamera(), panTo().
     ├── ui/
-    │   ├── ToolManager.js      ← Pointer events on the canvas for left-click tools.
-    │   │                          Uses renderer.raycastTile() for tile picking.
-    │   ├── StatsPanel.js       ← Listens to 'sim:tick', updates DOM count nodes.
-    │   ├── PopulationGraph.js  ← Line graph from sim.history ring buffer.
-    │   ├── TribesPanel.js      ← Renders top tribes (name, color dot, member/hut count,
-    │   │                          ⚔ enemy badge). Throttled to every 4th sim:tick.
-    │   └── UIManager.js        ← Wires toolbar, sim controls (pause/speed/regen),
-    │                              inspector (now shows tribe + trait), and seeds the
-    │                              starting population. Regen also calls civ.reset().
+    │   ├── ToolManager.js      ← Pointer events on the canvas. Brush size (1, 2, 3, or 5)
+    │   │                          only applies to terrain tools. Inspect prefers creatures
+    │   │                          over plants when entities share a tile. Sets canvas
+    │   │                          cursor style per tool (crosshair / pointer / cell).
+    │   ├── StatsPanel.js       ← Listens to 'sim:tick'. Updates count nodes, total
+    │   │                          population, and per-species "stretch bars" using
+    │   │                          POP_SCALE so a single big herd doesn't crush other bars.
+    │   ├── PopulationGraph.js  ← DPR-aware Canvas2D graph. Filled areas + line per series,
+    │   │                          shared Y-axis, latest values printed top-right.
+    │   ├── TribesPanel.js      ← Top-6 tribes by size. Header meta shows total tribe
+    │   │                          count + active wars; war row lists enemies coloured
+    │   │                          with each enemy tribe's colour.
+    │   ├── Toaster.js          ← Ephemeral notifications top-right of the canvas. Surfaces:
+    │   │                          spontaneous Joshuas, predator/human trait births, tribe
+    │   │                          foundings, war declarations, peace, world regen. Per-key
+    │   │                          coalescing window prevents floods. Pre-seeds known
+    │   │                          tribes/wars on construct + reset() so existing state
+    │   │                          never re-toasts on world boot.
+    │   ├── Minimap.js          ← 180×120 Canvas2D overhead view. Caches terrain into an
+    │   │                          off-screen ImageData buffer (rebuilt via
+    │   │                          invalidateTerrain() on terrain edit/regen), redraws
+    │   │                          entity dots every 3rd sim:tick. Clicking the minimap
+    │   │                          calls onPan(tx,ty) which UIManager wires to
+    │   │                          renderer.panTo().
+    │   ├── Modals.js           ← Welcome modal (first-time hero + 3-card pitch + Begin /
+    │   │                          View controls; persists `mw.seen.welcome.v2` in
+    │   │                          localStorage) and Help modal (keybinds, mouse, badges).
+    │   │                          Esc closes. Help also opened via the toolbar `?` button
+    │   │                          or the H key.
+    │   ├── FpsMeter.js         ← Smooths requestAnimationFrame timings; updates the HUD
+    │   │                          FPS readout every ~500ms.
+    │   └── UIManager.js        ← Wires toolbar, HUD (pause + speed +/- + camera reset +
+    │                              regen), inspector card layout (HP/Hunger/Energy/Age
+    │                              progress bars + tribe/trait/skill chips), brush slider
+    │                              visibility, and global keyboard shortcuts: 1–4 spawn
+    │                              tools, Q inspect, E erase, Space pause, [/] speed,
+    │                              F camera reset, R regen, H help. tickFrame() drives
+    │                              the FPS meter and a throttled inspector refresh.
 ```
 
 ---

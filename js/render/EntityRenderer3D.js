@@ -36,7 +36,6 @@ function cyl(rt, rb, h, ox = 0, oy = 0, oz = 0, seg = 6) {
 }
 
 function merge(geoms) {
-  // Strip uv to avoid attribute mismatch in merge
   for (const g of geoms) {
     if (g.attributes.uv) g.deleteAttribute('uv');
   }
@@ -46,7 +45,6 @@ function merge(geoms) {
 // ── Body assemblies ───────────────────────────────────────────────────────
 
 function buildHerbivoreBody() {
-  // Sheep-like: rounded body + 4 stubby legs + small tail
   const body  = ellipsoid(0.34, 0.26, 0.24, 0, 0.32, 0);
   const legFL = cyl(0.05, 0.05, 0.18,  0.18, 0,  0.14);
   const legFR = cyl(0.05, 0.05, 0.18,  0.18, 0, -0.14);
@@ -61,34 +59,39 @@ function buildHerbivoreHead() {
   const earR  = cone(0.05, 0.10, 0.36, 0.55, -0.08, 4);
   return merge([skull, earL, earR]);
 }
+function buildHerbivoreEyes() {
+  const eyeL = sphere(0.025, 0.49, 0.45,  0.07, 6, 6);
+  const eyeR = sphere(0.025, 0.49, 0.45, -0.07, 6, 6);
+  return merge([eyeL, eyeR]);
+}
 
 function buildPredatorBody() {
-  // Wolf-like: longer body, four legs, tail extending back
   const body  = ellipsoid(0.40, 0.22, 0.22, 0, 0.30, 0);
   const legFL = cyl(0.06, 0.06, 0.24,  0.22, 0,  0.16);
   const legFR = cyl(0.06, 0.06, 0.24,  0.22, 0, -0.16);
   const legBL = cyl(0.06, 0.06, 0.24, -0.22, 0,  0.16);
   const legBR = cyl(0.06, 0.06, 0.24, -0.22, 0, -0.16);
-  // Tail as a cone pointed -X, lying flat
   const tailGeom = new THREE.ConeGeometry(0.06, 0.30, 5);
-  tailGeom.rotateZ(Math.PI / 2);          // now points along -X
+  tailGeom.rotateZ(Math.PI / 2);
   tailGeom.translate(-0.55, 0.32, 0);
   return merge([body, legFL, legFR, legBL, legBR, tailGeom]);
 }
 function buildPredatorHead() {
   const skull = sphere(0.17, 0.42, 0.40, 0);
-  // Snout
   const snoutGeom = new THREE.ConeGeometry(0.09, 0.18, 5);
-  snoutGeom.rotateZ(-Math.PI / 2);          // points along +X
+  snoutGeom.rotateZ(-Math.PI / 2);
   snoutGeom.translate(0.62, 0.36, 0);
-  // Ears
   const earL = cone(0.05, 0.10, 0.40, 0.55,  0.10, 4);
   const earR = cone(0.05, 0.10, 0.40, 0.55, -0.10, 4);
   return merge([skull, snoutGeom, earL, earR]);
 }
+function buildPredatorEyes() {
+  const eyeL = sphere(0.028, 0.55, 0.43,  0.10, 6, 6);
+  const eyeR = sphere(0.028, 0.55, 0.43, -0.10, 6, 6);
+  return merge([eyeL, eyeR]);
+}
 
 function buildHumanBody() {
-  // Torso (capsule) + arms + legs
   const torso = (() => {
     const g = new THREE.CapsuleGeometry(0.13, 0.34, 4, 8);
     g.translate(0, 0.55, 0);
@@ -104,12 +107,16 @@ function buildHumanHead() {
   const head = sphere(0.13, 0, 0.92, 0);
   return head;
 }
+function buildHumanEyes() {
+  const eyeL = sphere(0.020, 0.115, 0.95,  0.05, 6, 6);
+  const eyeR = sphere(0.020, 0.115, 0.95, -0.05, 6, 6);
+  return merge([eyeL, eyeR]);
+}
 
 function buildPlantTrunk() {
   return cyl(0.06, 0.10, 0.30, 0, 0, 0, 6);
 }
 function buildPlantFoliage() {
-  // Layered cones for an evergreen-ish look
   const c1 = cone(0.30, 0.50, 0, 0.22, 0, 6);
   const c2 = cone(0.22, 0.40, 0, 0.55, 0, 6);
   const c3 = cone(0.14, 0.30, 0, 0.85, 0, 6);
@@ -117,15 +124,18 @@ function buildPlantFoliage() {
 }
 
 function buildHutWalls() {
-  // Square wood wall block
   return box(0.7, 0.45, 0.7, 0, 0.225, 0);
 }
 function buildHutRoof() {
-  // Pyramid roof
   const g = new THREE.ConeGeometry(0.55, 0.35, 4);
-  g.rotateY(Math.PI / 4);          // align corners with walls
+  g.rotateY(Math.PI / 4);
   g.translate(0, 0.625, 0);
   return g;
+}
+function buildHutDoor() {
+  // Small dark door panel facing +X (the hut's "front")
+  const door = box(0.04, 0.22, 0.16, 0.36, 0.13, 0);
+  return door;
 }
 
 // ── Color helpers ─────────────────────────────────────────────────────────
@@ -140,6 +150,8 @@ const HUMAN_FALLBACK  = new THREE.Color(UNAFFILIATED_COLOR);
 const HUMAN_HEAD      = new THREE.Color('#f0c69a');
 const HUT_WALL        = new THREE.Color('#7a5a3a');
 const HUT_ROOF        = new THREE.Color('#444444');
+const HUT_DOOR        = new THREE.Color('#3a2818');
+const EYE_COLOR       = new THREE.Color('#101015');
 const HUNGRY_TINT     = new THREE.Color('#202020');
 const GESTATING_TINT  = new THREE.Color('#ff80a0');
 const TRAIT_TINT      = new THREE.Color('#ffd34d');
@@ -155,11 +167,8 @@ export class EntityRenderer3D {
     this._dummy = new THREE.Object3D();
     this._color = new THREE.Color();
     this._tmp   = new THREE.Color();
-    this.civ    = null;          // injected by Renderer3D before each update
+    this.civ    = null;
 
-    // Build per-type "parts" arrays. Each entry is a part that follows the
-    // entity's body transform. `colorRole` says whether it gets the body
-    // color, head color, etc.
     this.partGroups = {};
 
     const baseMat = (extra) => new THREE.MeshStandardMaterial({
@@ -189,21 +198,25 @@ export class EntityRenderer3D {
     this.partGroups[TYPE.HERBIVORE] = [
       makeMesh(buildHerbivoreBody(), 'body'),
       makeMesh(buildHerbivoreHead(), 'head'),
+      makeMesh(buildHerbivoreEyes(), 'eye'),
     ];
     this.partGroups[TYPE.PREDATOR] = [
       makeMesh(buildPredatorBody(), 'body'),
       makeMesh(buildPredatorHead(), 'head'),
+      makeMesh(buildPredatorEyes(), 'eye'),
     ];
     this.partGroups[TYPE.HUMAN] = [
       makeMesh(buildHumanBody(), 'body'),
       makeMesh(buildHumanHead(), 'head'),
+      makeMesh(buildHumanEyes(), 'eye'),
     ];
     this.partGroups[TYPE.BUILDING] = [
       makeMesh(buildHutWalls(), 'wall'),
       makeMesh(buildHutRoof(),  'roof'),
+      makeMesh(buildHutDoor(),  'door'),
     ];
 
-    // Trait marker: a glowing octahedron that floats over special creatures
+    // Trait marker
     const tg = new THREE.OctahedronGeometry(0.12, 0);
     tg.translate(0, 1.45, 0);
     const tm = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 });
@@ -215,8 +228,7 @@ export class EntityRenderer3D {
       new Float32Array(MAX_ENTITIES * 3), 3
     );
 
-    // Skill marker: a flat cyan torus that hovers at the feet of Joshuas.
-    // Sits on the ground so it doesn't clash with the gold trait octahedron above the head.
+    // Skill marker
     const sg = new THREE.TorusGeometry(0.36, 0.05, 6, 18);
     sg.rotateX(-Math.PI / 2);
     sg.translate(0, 0.04, 0);
@@ -229,8 +241,8 @@ export class EntityRenderer3D {
       new Float32Array(MAX_ENTITIES * 3), 3
     );
 
-    // Highlight ring for the inspected entity
-    const ringGeom = new THREE.TorusGeometry(0.55, 0.06, 6, 18);
+    // Highlight ring — animated radius
+    const ringGeom = new THREE.TorusGeometry(0.55, 0.06, 6, 24);
     ringGeom.rotateX(-Math.PI / 2);
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0xffffff, transparent: true, opacity: 0.85, depthTest: false,
@@ -239,7 +251,6 @@ export class EntityRenderer3D {
     this.highlight.renderOrder = 999;
     this.highlight.visible = false;
 
-    // Flat list for scene.add convenience
     this.allMeshes = [];
     for (const parts of Object.values(this.partGroups)) {
       for (const p of parts) this.allMeshes.push(p.mesh);
@@ -248,10 +259,10 @@ export class EntityRenderer3D {
     this.allMeshes.push(this.skillMarker);
   }
 
-  /** Per-frame: sync instance matrices and colors from the entity registry. */
   update(registry, tileRenderer3d, civ) {
     this.civ = civ;
     const now = performance.now();
+    const nowSec = now * 0.001;
 
     const counts = {
       [TYPE.PLANT]: 0, [TYPE.HERBIVORE]: 0, [TYPE.PREDATOR]: 0,
@@ -267,12 +278,12 @@ export class EntityRenderer3D {
       const idx = counts[ent.type]++;
       if (idx >= MAX_ENTITIES) continue;
 
-      // Smooth motion interpolation between prevTile -> current tile.
+      // Smooth motion interpolation
       let fx = ent.tileX, fz = ent.tileY;
       let isMoving = false;
       if (ent.moveDurationMs > 0) {
         const t = Math.min(1, (now - ent.moveStartedAt) / ent.moveDurationMs);
-        const e = t * t * (3 - 2 * t); // smoothstep
+        const e = t * t * (3 - 2 * t);
         fx = ent.prevTileX + (ent.tileX - ent.prevTileX) * e;
         fz = ent.prevTileY + (ent.tileY - ent.prevTileY) * e;
         isMoving = t < 1;
@@ -281,49 +292,52 @@ export class EntityRenderer3D {
       const tileY = Math.round(fz);
       const elev = tileRenderer3d.getElevationAt(tileX, tileY);
 
-      // Subtle bob while moving
       const bob = isMoving ? Math.abs(Math.sin(now * 0.012 + ent.id)) * 0.05 : 0;
+      // Subtle idle breathing — uniform up-down sway when stationary
+      const breath = (!isMoving && ent.type !== TYPE.PLANT && ent.type !== TYPE.BUILDING)
+        ? Math.sin(nowSec * 1.6 + ent.id * 0.7) * 0.012
+        : 0;
 
       const x = fx + 0.5;
       const z = fz + 0.5;
       const y = elev + bob;
 
-      // Build the shared transform for this entity
-      const scale = ent.scale ?? 1;
-      this._dummy.position.set(x, y, z);
-      // +X local = forward; rotation around Y by -heading aligns local +X to world heading
-      this._dummy.rotation.set(0, -((ent.heading ?? 0)), 0);
-      // Plant scale by stage
-      let s = scale;
+      let scale = ent.scale ?? 1;
+      let s = scale + breath;
       if (ent.type === TYPE.PLANT && ent.stage !== undefined) {
         s = scale * (0.5 + ent.stage * 0.30);
       }
+
+      this._dummy.position.set(x, y, z);
+      this._dummy.rotation.set(0, -((ent.heading ?? 0)), 0);
       this._dummy.scale.set(s, s, s);
       this._dummy.updateMatrix();
 
-      // Apply transform + colour to every part of this entity
       for (const part of parts) {
         part.mesh.setMatrixAt(idx, this._dummy.matrix);
         const c = this._colorForPart(ent, part.colorRole);
         part.mesh.setColorAt(idx, c);
       }
 
-      // Trait marker — floats above any special creature
+      // Trait marker
       if (ent.trait && traitCount < MAX_ENTITIES) {
+        // Pulse the marker so it's catchier
+        const pulse = 1 + Math.sin(nowSec * 3.2 + ent.id) * 0.18;
         this._dummy.position.set(x, y, z);
-        this._dummy.rotation.set(0, now * 0.002, 0); // slow spin
-        this._dummy.scale.set(s, s, s);
+        this._dummy.rotation.set(0, now * 0.002, 0);
+        this._dummy.scale.set(s * pulse, s * pulse, s * pulse);
         this._dummy.updateMatrix();
         this.traitMarker.setMatrixAt(traitCount, this._dummy.matrix);
         this.traitMarker.setColorAt(traitCount, TRAIT_GLOW);
         traitCount++;
       }
 
-      // Skill marker — cyan ground ring for humans named Joshua
+      // Skill marker
       if (ent.skill && skillCount < MAX_ENTITIES) {
+        const pulse = 1 + Math.sin(nowSec * 2.0 + ent.id) * 0.10;
         this._dummy.position.set(x, y + 0.01, z);
         this._dummy.rotation.set(0, now * 0.0015, 0);
-        this._dummy.scale.set(s, s, s);
+        this._dummy.scale.set(s * pulse, s * pulse, s * pulse);
         this._dummy.updateMatrix();
         this.skillMarker.setMatrixAt(skillCount, this._dummy.matrix);
         this.skillMarker.setColorAt(skillCount, SKILL_GLOW);
@@ -331,7 +345,6 @@ export class EntityRenderer3D {
       }
     }
 
-    // Apply counts + flag GPU upload
     for (const [type, parts] of Object.entries(this.partGroups)) {
       const cnt = counts[type];
       for (const part of parts) {
@@ -353,6 +366,7 @@ export class EntityRenderer3D {
     switch (role) {
       case 'plantTrunk': c.copy(PLANT_TRUNK); break;
       case 'plantLeaf':  c.copy(PLANT_COLOR); break;
+      case 'eye':        c.copy(EYE_COLOR);   return c;   // eyes never tint
       case 'head':
         if (ent.type === TYPE.HERBIVORE) c.copy(HERBIVORE_HEAD);
         else if (ent.type === TYPE.PREDATOR) c.copy(PREDATOR_HEAD);
@@ -367,6 +381,7 @@ export class EntityRenderer3D {
         }
         break;
       case 'wall': c.copy(HUT_WALL); break;
+      case 'door': c.copy(HUT_DOOR); break;
       case 'roof':
         if (this.civ && ent.tribeId != null) {
           const t = this.civ.getTribe(ent.tribeId);
@@ -377,15 +392,11 @@ export class EntityRenderer3D {
       default: c.setRGB(1, 1, 1);
     }
 
-    // State tints (only on body)
     if (role === 'body') {
       if (ent.gestating) c.lerp(GESTATING_TINT, 0.45);
       else if (ent.hunger !== undefined && ent.hunger > 0.7) c.lerp(HUNGRY_TINT, 0.35);
-      // Predator blood frenzy: redder while the buff is active
       if (ent.frenzyTimer > 0) c.lerp(FRENZY_TINT, 0.30);
-      // Special trait gives a slight gold sheen on the body
       if (ent.trait) c.lerp(TRAIT_TINT, 0.18);
-      // Joshua skill gives a cyan-blue sheen on the body
       if (ent.skill) c.lerp(SKILL_TINT, 0.22);
     }
     return c;
@@ -410,6 +421,9 @@ export class EntityRenderer3D {
     }
     const elev = tileRenderer3d.getElevationAt(entity.tileX, entity.tileY);
     this.highlight.position.set(entity.tileX + 0.5, elev + 0.08, entity.tileY + 0.5);
+    // Pulse the highlight ring
+    const pulse = 1 + Math.sin(performance.now() * 0.005) * 0.10;
+    this.highlight.scale.set(pulse, pulse, pulse);
     this.highlight.visible = true;
   }
 }

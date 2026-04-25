@@ -1,14 +1,14 @@
 import { eventBus } from '../core/eventBus.js';
 
 /**
- * Renders the list of active tribes in the right sidebar:
- *   ●  Aurelians  (12)  ⚔ Drovaks
- * Each row colored by tribe color. Updates throttled to every 4th sim:tick.
+ * Tribes panel — sidebar list of currently active tribes, sorted by size.
+ * Shows colour, name, member/hut counts, and a war badge with enemy names.
  */
 export class TribesPanel {
   constructor(civ, containerId = 'tribes-body') {
     this.civ = civ;
     this.el  = document.getElementById(containerId);
+    this.metaEl = document.getElementById('tribe-meta');
     this._frame = 0;
 
     eventBus.on('sim:tick', () => {
@@ -21,26 +21,37 @@ export class TribesPanel {
   _render() {
     if (!this.el) return;
     const tribes = [...this.civ.tribes.values()]
-      .sort((a, b) => b.size() - a.size())
-      .slice(0, 6);
+      .sort((a, b) => b.size() - a.size());
+    const top = tribes.slice(0, 6);
 
-    if (tribes.length === 0) {
-      this.el.innerHTML = `<div class="tribes-empty">No tribes yet</div>`;
+    if (this.metaEl) {
+      const wars = tribes.reduce((acc, t) => acc + (t.enemies.size > 0 ? 1 : 0), 0);
+      this.metaEl.textContent = tribes.length === 0
+        ? '—'
+        : `${tribes.length} active${wars ? ` · ${Math.floor(wars/2 + (wars%2))} war` : ''}`;
+    }
+
+    if (top.length === 0) {
+      this.el.innerHTML = `<div class="tribes-empty">No tribes yet — humans need to settle first</div>`;
       return;
     }
 
-    const rows = tribes.map(t => {
+    const rows = top.map(t => {
       const enemies = [...t.enemies]
-        .map(id => this.civ.getTribe(id)?.name)
+        .map(id => this.civ.getTribe(id))
         .filter(Boolean);
       const warHTML = enemies.length
-        ? `<span class="tribe-war" title="At war with: ${enemies.join(', ')}">⚔ ${enemies.length}</span>`
+        ? `<div class="tribe-war" title="${enemies.map(e => e.name).join(', ')}">⚔ vs ${enemies.map(e => `<span style="color:${e.color}">${e.name}</span>`).join(', ')}</div>`
         : '';
       return `
         <div class="tribe-row">
-          <div class="tribe-dot" style="background:${t.color}"></div>
+          <div class="tribe-dot" style="background:${t.color}; color:${t.color}"></div>
           <span class="tribe-name">${t.name}</span>
-          <span class="tribe-count">${t.members.size}/${t.huts.size}</span>
+          <span class="tribe-count">
+            <span title="Members">${t.members.size}</span>
+            <span class="sep">·</span>
+            <span title="Huts">${t.huts.size}🏠</span>
+          </span>
           ${warHTML}
         </div>`;
     }).join('');

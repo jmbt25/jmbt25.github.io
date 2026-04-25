@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mini World — Life Simulation</title>
+  <meta name="description" content="A WorldBox-inspired 3D life simulation in your browser. Watch creatures, tribes, and civilisations evolve in real time." />
+  <title>Mini World — A 3D Life Simulation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -12,19 +16,27 @@
   <!-- ── Left toolbar ──────────────────────────────────────────────────── -->
   <aside id="toolbar">
 
+    <div class="toolbar-brand" title="Mini World">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M3 12h18" />
+        <path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18" />
+      </svg>
+    </div>
+
     <div class="tool-section-label">Spawn</div>
 
-    <button class="tool-btn" data-tool="spawn_plant" title="Spawn Plant">
-      🌱<span class="lbl">Plant</span>
+    <button class="tool-btn" data-tool="spawn_plant" data-key="1" title="Plant — 1">
+      <span class="tool-emoji">🌱</span><span class="lbl">Plant</span>
     </button>
-    <button class="tool-btn" data-tool="spawn_herbivore" title="Spawn Herbivore">
-      🐑<span class="lbl">Herb</span>
+    <button class="tool-btn" data-tool="spawn_herbivore" data-key="2" title="Herbivore — 2">
+      <span class="tool-emoji">🐑</span><span class="lbl">Herb</span>
     </button>
-    <button class="tool-btn" data-tool="spawn_predator" title="Spawn Predator">
-      🐺<span class="lbl">Pred</span>
+    <button class="tool-btn" data-tool="spawn_predator" data-key="3" title="Predator — 3">
+      <span class="tool-emoji">🐺</span><span class="lbl">Pred</span>
     </button>
-    <button class="tool-btn" data-tool="spawn_human" title="Spawn Human">
-      🧍<span class="lbl">Human</span>
+    <button class="tool-btn" data-tool="spawn_human" data-key="4" title="Human — 4">
+      <span class="tool-emoji">🧍</span><span class="lbl">Human</span>
     </button>
 
     <div class="tool-section-label">Terrain</div>
@@ -56,11 +68,17 @@
 
     <div class="tool-section-label">Tools</div>
 
-    <button class="tool-btn" data-tool="inspect" title="Inspect entity">
-      🔍<span class="lbl">Inspect</span>
+    <button class="tool-btn" data-tool="inspect" data-key="Q" title="Inspect — Q">
+      <span class="tool-emoji">🔍</span><span class="lbl">Inspect</span>
     </button>
-    <button class="tool-btn" data-tool="erase" title="Erase entities">
-      🗑️<span class="lbl">Erase</span>
+    <button class="tool-btn" data-tool="erase" data-key="E" title="Erase — E">
+      <span class="tool-emoji">🗑️</span><span class="lbl">Erase</span>
+    </button>
+
+    <div class="toolbar-spacer"></div>
+
+    <button class="tool-btn icon-btn" id="btn-help" title="Help & Controls — H">
+      <span class="tool-emoji">?</span>
     </button>
 
   </aside>
@@ -69,18 +87,82 @@
   <div id="canvas-container">
     <canvas id="world-canvas"></canvas>
 
+    <!-- Top HUD overlay -->
     <div id="hud">
-      <span class="hud-label">Tick</span>
-      <span class="hud-value" id="stat-tick">0</span>
+      <div class="hud-block">
+        <div class="hud-title">Mini World</div>
+        <div class="hud-sub">A living simulation</div>
+      </div>
 
-      <span class="hud-label" style="margin-left:8px">Speed</span>
-      <span class="hud-value" id="stat-speed">1×</span>
+      <div class="hud-stat">
+        <span class="hud-label">Tick</span>
+        <span class="hud-value" id="stat-tick">0</span>
+      </div>
 
-      <span class="hud-sep"></span>
+      <div class="hud-stat">
+        <span class="hud-label">Day</span>
+        <span class="hud-value" id="stat-day">1</span>
+      </div>
 
-      <button class="ctrl-btn" id="btn-pause"      title="Pause">⏸</button>
-      <button class="ctrl-btn" id="btn-speed"      title="Increase speed">2×</button>
-      <button class="ctrl-btn danger" id="btn-regenerate" title="Regenerate world">↺ Regen</button>
+      <div class="hud-stat">
+        <span class="hud-label">FPS</span>
+        <span class="hud-value" id="stat-fps">—</span>
+      </div>
+
+      <div class="hud-spacer"></div>
+
+      <div class="hud-controls">
+        <button class="ctrl-btn icon" id="btn-pause" title="Pause / Resume — Space">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+        </button>
+
+        <div class="speed-group" title="Simulation speed">
+          <button class="ctrl-btn micro" id="btn-speed-down" title="Slower — [">−</button>
+          <div class="speed-display"><span id="stat-speed">1×</span></div>
+          <button class="ctrl-btn micro" id="btn-speed-up" title="Faster — ]">+</button>
+        </div>
+
+        <button class="ctrl-btn icon" id="btn-camera-reset" title="Reset camera — F">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/>
+          </svg>
+        </button>
+
+        <button class="ctrl-btn danger" id="btn-regenerate" title="Regenerate world — R">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/>
+          </svg>
+          New World
+        </button>
+      </div>
+    </div>
+
+    <!-- Pause overlay -->
+    <div id="pause-overlay">
+      <div class="pause-card">
+        <svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+        <div>Paused</div>
+        <div class="pause-hint">Press space to resume</div>
+      </div>
+    </div>
+
+    <!-- Brush size dial (terrain only) -->
+    <div id="brush-dial" class="floating-control">
+      <span class="floating-label">Brush</span>
+      <input type="range" id="brush-size" min="0" max="3" value="0" step="1" />
+      <span class="floating-value" id="brush-size-val">1×1</span>
+    </div>
+
+    <!-- Tile coordinate readout (bottom-left) -->
+    <div id="coords">—</div>
+
+    <!-- Toast notifications -->
+    <div id="toast-host"></div>
+
+    <!-- Minimap -->
+    <div id="minimap-host">
+      <div class="minimap-title">World Map</div>
+      <canvas id="minimap-canvas" width="180" height="120"></canvas>
     </div>
   </div>
 
@@ -89,49 +171,67 @@
 
     <!-- Population counts -->
     <div class="panel">
-      <div class="panel-title">Population</div>
+      <div class="panel-title">
+        <span>Population</span>
+        <span class="panel-meta" id="pop-total">0</span>
+      </div>
 
-      <div class="pop-row">
+      <div class="pop-row" data-pop="plant">
         <div class="pop-dot" style="background:var(--c-plant)"></div>
         <span class="pop-label">Plants</span>
+        <span class="pop-bar"><i style="width:0%; background:var(--c-plant)"></i></span>
         <span class="pop-count" id="count-plant">0</span>
       </div>
-      <div class="pop-row">
+      <div class="pop-row" data-pop="herbivore">
         <div class="pop-dot" style="background:var(--c-herbivore)"></div>
         <span class="pop-label">Herbivores</span>
+        <span class="pop-bar"><i style="width:0%; background:var(--c-herbivore)"></i></span>
         <span class="pop-count" id="count-herbivore">0</span>
       </div>
-      <div class="pop-row">
+      <div class="pop-row" data-pop="predator">
         <div class="pop-dot" style="background:var(--c-predator)"></div>
         <span class="pop-label">Predators</span>
+        <span class="pop-bar"><i style="width:0%; background:var(--c-predator)"></i></span>
         <span class="pop-count" id="count-predator">0</span>
       </div>
-      <div class="pop-row">
+      <div class="pop-row" data-pop="human">
         <div class="pop-dot" style="background:var(--c-human)"></div>
         <span class="pop-label">Humans</span>
+        <span class="pop-bar"><i style="width:0%; background:var(--c-human)"></i></span>
         <span class="pop-count" id="count-human">0</span>
       </div>
     </div>
 
     <!-- Population graph -->
-    <div class="panel" style="padding: 8px 0 0;">
-      <div class="panel-title" style="padding: 0 12px;">History</div>
-      <canvas id="graph-canvas" width="220" height="80"></canvas>
+    <div class="panel">
+      <div class="panel-title">
+        <span>History</span>
+        <span class="panel-meta">last 200 ticks</span>
+      </div>
+      <canvas id="graph-canvas" width="220" height="84"></canvas>
     </div>
 
     <!-- Tribes -->
     <div class="panel">
-      <div class="panel-title">Tribes</div>
+      <div class="panel-title">
+        <span>Tribes</span>
+        <span class="panel-meta" id="tribe-meta">—</span>
+      </div>
       <div id="tribes-body">
-        <div class="tribes-empty">No tribes yet</div>
+        <div class="tribes-empty">No tribes yet — humans need to settle first</div>
       </div>
     </div>
 
     <!-- Inspector -->
-    <div class="panel" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
-      <div class="panel-title">Inspector</div>
+    <div class="panel inspector-panel">
+      <div class="panel-title"><span>Inspector</span></div>
       <div id="inspector-body">
-        <div class="inspector-empty">Click an entity<br>to inspect it</div>
+        <div class="inspector-empty">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>
+          </svg>
+          <div>Pick the <b>Inspect</b> tool, then click any creature, plant, or hut.</div>
+        </div>
       </div>
     </div>
 
@@ -139,13 +239,101 @@
     <div id="legend">
       <div class="legend-row"><div class="legend-dot" style="background:var(--c-herbivore)"></div>Herbivore — grazes plants</div>
       <div class="legend-row"><div class="legend-dot" style="background:var(--c-predator)"></div>Predator — hunts herbivores &amp; humans</div>
-      <div class="legend-row"><div class="legend-dot" style="background:var(--c-human)"></div>Human — forms tribes, builds huts, wages war</div>
-      <div class="legend-row"><div class="legend-dot" style="background:var(--c-plant)"></div>Plant — spreads naturally on grass &amp; forest</div>
-      <div class="legend-row"><div class="legend-dot" style="background:#ffd34d"></div>★ Special — has a unique trait</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--c-human)"></div>Human — forms tribes &amp; wages war</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--c-plant)"></div>Plant — spreads on grass &amp; forest</div>
+      <div class="legend-row"><div class="legend-dot trait-dot"></div>★ Special — has a unique trait</div>
+      <div class="legend-row"><div class="legend-dot skill-dot"></div>◆ Joshua — hereditary skill</div>
     </div>
 
   </aside>
 
+</div>
+
+<!-- ── Welcome modal ─────────────────────────────────────────────────── -->
+<div id="welcome-modal" class="modal-host" data-open="true">
+  <div class="modal-backdrop"></div>
+  <div class="modal-card welcome-card">
+    <div class="welcome-hero">
+      <div class="welcome-glow"></div>
+      <div class="welcome-title">Mini World</div>
+      <div class="welcome-tagline">A 3D life simulation that runs in your browser</div>
+    </div>
+
+    <div class="welcome-grid">
+      <div class="welcome-item">
+        <div class="welcome-icon" style="color:#7fd58c">🌍</div>
+        <div class="welcome-h">Watch worlds emerge</div>
+        <div class="welcome-p">Procedural terrain seeds an ecosystem of plants, herbivores, predators, and humans.</div>
+      </div>
+      <div class="welcome-item">
+        <div class="welcome-icon" style="color:#5fb6d8">🏛️</div>
+        <div class="welcome-h">Civilisations rise</div>
+        <div class="welcome-p">Humans form tribes, build huts, declare war, and forge dynasties of "Joshuas".</div>
+      </div>
+      <div class="welcome-item">
+        <div class="welcome-icon" style="color:#ffd34d">✨</div>
+        <div class="welcome-h">Shape the world</div>
+        <div class="welcome-p">Paint terrain, spawn creatures, and inspect anyone — left click does it all.</div>
+      </div>
+    </div>
+
+    <div class="welcome-actions">
+      <button class="btn-primary" id="btn-start">Begin simulation</button>
+      <button class="btn-ghost" id="btn-welcome-help">View controls</button>
+    </div>
+
+    <div class="welcome-foot">Tip: hold right mouse button to orbit the camera, scroll to zoom.</div>
+  </div>
+</div>
+
+<!-- ── Help modal ────────────────────────────────────────────────────── -->
+<div id="help-modal" class="modal-host">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card help-card">
+    <div class="modal-head">
+      <div class="modal-title">Controls &amp; Shortcuts</div>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+
+    <div class="help-grid">
+      <div class="help-section">
+        <div class="help-h">Camera</div>
+        <div class="kbd-row"><span class="kbd">Right-drag</span><span>Orbit</span></div>
+        <div class="kbd-row"><span class="kbd">Middle-drag</span><span>Pan</span></div>
+        <div class="kbd-row"><span class="kbd">Scroll</span><span>Zoom</span></div>
+        <div class="kbd-row"><span class="kbd">F</span><span>Reset camera</span></div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-h">Simulation</div>
+        <div class="kbd-row"><span class="kbd">Space</span><span>Pause / resume</span></div>
+        <div class="kbd-row"><span class="kbd">[ &nbsp; ]</span><span>Slower / faster</span></div>
+        <div class="kbd-row"><span class="kbd">R</span><span>New world</span></div>
+        <div class="kbd-row"><span class="kbd">H</span><span>Toggle this panel</span></div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-h">Tools</div>
+        <div class="kbd-row"><span class="kbd">1 – 4</span><span>Spawn plant / herb / pred / human</span></div>
+        <div class="kbd-row"><span class="kbd">Q</span><span>Inspect mode</span></div>
+        <div class="kbd-row"><span class="kbd">E</span><span>Erase mode</span></div>
+        <div class="kbd-row"><span class="kbd">Left-click</span><span>Apply active tool</span></div>
+        <div class="kbd-row"><span class="kbd">Drag</span><span>Continuous painting</span></div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-h">Special markers</div>
+        <div class="kbd-row"><span class="badge badge-trait">★</span><span>Trait — gold octahedron above the head</span></div>
+        <div class="kbd-row"><span class="badge badge-skill">◆</span><span>Joshua — cyan ring at the feet</span></div>
+        <div class="kbd-row"><span class="badge badge-tribe">●</span><span>Hut roof &amp; human body share tribe colour</span></div>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <a href="https://github.com/jmbt25/jmbt25.github.io" target="_blank" rel="noopener">Source on GitHub</a>
+      <button class="btn-primary" data-close>Got it</button>
+    </div>
+  </div>
 </div>
 
 <script type="importmap">

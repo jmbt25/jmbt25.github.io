@@ -72,17 +72,27 @@ export class TileRenderer3D {
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.name = 'terrain';
 
+    // Cursor — a thin animated wireframe square that scales with brush size.
     const cursorGeom = new THREE.PlaneGeometry(1, 1);
     cursorGeom.rotateX(-Math.PI / 2);
-    cursorGeom.translate(0.5, 0, 0.5);
     const cursorMat = new THREE.MeshBasicMaterial({
       color:        0xffffff,
       transparent:  true,
-      opacity:      0.35,
+      opacity:      0.20,
       depthWrite:   false,
     });
     this.cursor = new THREE.Mesh(cursorGeom, cursorMat);
     this.cursor.visible = false;
+
+    // Cursor outline ring (looks crisper than a flat square)
+    const outlineGeom = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 0.02, 1));
+    const outlineMat = new THREE.LineBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 0.85, depthTest: false,
+    });
+    this.cursorOutline = new THREE.LineSegments(outlineGeom, outlineMat);
+    this.cursorOutline.renderOrder = 999;
+    this.cursorOutline.visible = false;
+    this.cursor.add(this.cursorOutline);
   }
 
   rebuild(world) {
@@ -139,17 +149,22 @@ export class TileRenderer3D {
     );
   }
 
-  setCursorTile(tx, ty) {
+  setCursorTile(tx, ty, brushSize = 1) {
     if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) {
       this.cursor.visible = false;
+      this.cursorOutline.visible = false;
       return;
     }
     const elev = this.getElevationAt(tx, ty);
-    this.cursor.position.set(tx, elev + 0.05, ty);
+    const r = (brushSize - 1) / 2;
+    this.cursor.position.set(tx + 0.5, elev + 0.05, ty + 0.5);
+    this.cursor.scale.set(brushSize, 1, brushSize);
     this.cursor.visible = true;
+    this.cursorOutline.visible = true;
   }
 
   clearCursor() {
     this.cursor.visible = false;
+    this.cursorOutline.visible = false;
   }
 }
