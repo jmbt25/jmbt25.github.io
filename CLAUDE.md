@@ -101,18 +101,36 @@ The user's intent is for this to be their GitHub Page for now, with a separate p
     │   │                          single-finger touch reserved for ToolManager. Exposes
     │   │                          resetToDefault() (animated lerp back) and panTo(x,z)
     │   │                          (smooth pan target — used by minimap click).
-    │   ├── TileRenderer3D.js   ← Terrain BufferGeometry; vertex Y = biome elevation,
-    │   │                          colors averaged from neighbouring tiles. Cursor is a
-    │   │                          plane + EdgesGeometry outline; setCursorTile accepts
-    │   │                          a brushSize so paint preview matches the slider.
-    │   ├── EntityRenderer3D.js ← One InstancedMesh per BODY PART per type. Each creature
-    │   │                          type now has body + head + EYES (a merged pair of
-    │   │                          small dark spheres). Buildings have walls + tribe-
-    │   │                          coloured roof + door panel. Idle creatures breathe
-    │   │                          (uniform-scale sway); moving ones bob. Trait octahedron
-    │   │                          and Joshua skill ring both pulse for visibility, and
-    │   │                          the highlight torus around the inspected entity also
-    │   │                          pulses. allMeshes flat list for scene.add().
+    │   ├── TileRenderer3D.js   ← Terrain BufferGeometry; vertex Y = biome elevation
+    │   │                          + a deterministic per-vertex hash jitter (small on
+    │   │                          grass/sand, dramatic on mountain/snow for jagged peaks).
+    │   │                          Lateral X/Z jitter on interior vertices breaks the
+    │   │                          grid look. A second pass blends snow-cap white into
+    │   │                          the highest peak vertices. Mesh casts + receives
+    │   │                          shadows. Cursor is plane + EdgesGeometry outline;
+    │   │                          setCursorTile accepts a brushSize.
+    │   ├── TerrainDecorations.js ← Static InstancedMesh scatter system. Per-tile plan
+    │   │                          per terrain emits trees (pine, broadleaf), bushes,
+    │   │                          grass tufts, wildflowers, rocks, boulders, pebbles,
+    │   │                          driftwood, ice spikes, and shoreline reeds. ~10
+    │   │                          decoration kinds, ~30 k total instances on a default
+    │   │                          120×80 world. All placement/scale/yaw/colour is
+    │   │                          deterministic per (tile, slot) hash so rebuild after
+    │   │                          edits gives identical output. Casts shadows on tall
+    │   │                          decorations.
+    │   ├── EntityRenderer3D.js ← One InstancedMesh per BODY PART per type. Composite
+    │   │                          parts: herbivore = body (with wool bobbles) + head
+    │   │                          + sclera + dark pupils; predator = body (with
+    │   │                          shoulder ruff + bushy tail) + head + sclera +
+    │   │                          amber-red pupils; human = body (with belt) + head
+    │   │                          + cap-style hair (id-keyed colour) + sclera + pupils;
+    │   │                          hut = stone foundation + walls + tribe-coloured
+    │   │                          roof + door + chimney. Per-instance HSL jitter on
+    │   │                          body + head colours so a herd reads as individuals.
+    │   │                          Walking sway (Z roll) + bigger bob while moving;
+    │   │                          breathing while idle. Trait octahedron and Joshua
+    │   │                          skill ring pulse. Highlight torus pulses too. All
+    │   │                          parts share one transform per entity per frame.
     │   ├── SkySystem.js        ← Procedural day/night cycle (~120s wall-time per day).
     │   │                          Vertex-coloured sphere sky dome interpolated through 9
     │   │                          phase stops (night → dawn → midday → dusk). Drives the
@@ -121,23 +139,36 @@ The user's intent is for this to be their GitHub Page for now, with a separate p
     │   │                          star Points field that fades in at night. Tracks
     │   │                          dayCount; getTimeLabel() yields "Morning"/"Dusk"/etc.
     │   │                          for the HUD.
-    │   ├── WaterPlane.js       ← Animated translucent ShaderMaterial plane at y = -1.2
+    │   ├── WaterPlane.js       ← Animated translucent ShaderMaterial plane at y = -1.05
     │   │                          (just above the terrain WATER dip). Vertex shader
     │   │                          generates sin-wave displacement; fragment paints
-    │   │                          depth-blended base + animated specular streaks tinted
-    │   │                          to current sky/fog colour.
+    │   │                          depth-blended base + animated specular streaks +
+    │   │                          shoreline foam (sampled from a DataTexture built by
+    │   │                          setShoreFromWorld(): water tiles bordering land get
+    │   │                          full foam, blurred for soft falloff). receiveShadow.
     │   ├── ParticleSystem.js   ← Pool of 480 GPU points drifting up as smoke from every
     │   │                          alive Building. Soft-disc shader, fade in/out by
     │   │                          life ratio, allocation-free per frame. setColor() lets
     │   │                          renderer match smoke to sky colour.
-    │   └── Renderer3D.js       ← Owns WebGLRenderer (ACES tonemap, sRGB output), Scene
-    │                              (with fog), Camera3D, SkySystem, WaterPlane,
-    │                              ParticleSystem, and the terrain/entity sub-renderers.
-    │                              Each frame: skySystem.update → propagate sky colour to
-    │                              water highlight + smoke tint → entity update → water
-    │                              update → particle update → render. Exposes render(),
-    │                              resize(), rebuildTerrain(), setCursorTile(tx,ty,brush)/
-    │                              clearCursor, raycastTile(x,y), resetCamera(), panTo().
+    │   ├── Fireflies.js        ← 280 glowing additively-blended Points that drift in
+    │   │                          lazy figure-8 paths over grass/forest tiles. Visible
+    │   │                          only at night; the main render loop feeds the
+    │   │                          SkySystem phase to fade them in at dusk and out at
+    │   │                          dawn. scatter() places them on suitable tiles after
+    │   │                          worldgen / regen.
+    │   └── Renderer3D.js       ← Owns WebGLRenderer (ACES tonemap, sRGB output, PCF
+    │                              soft shadows enabled), Scene (with fog), Camera3D,
+    │                              SkySystem, TerrainDecorations, WaterPlane,
+    │                              ParticleSystem, Fireflies, and the terrain/entity
+    │                              sub-renderers. The SkySystem's sun is configured here
+    │                              with a 2048² shadow map and a world-sized ortho
+    │                              shadow frustum. Each frame: skySystem.update →
+    │                              propagate sky colour to water highlight + smoke tint
+    │                              → re-aim sun shadow target → entity update → water
+    │                              update → particle update → fireflies update →
+    │                              render. rebuildTerrain() refreshes terrain mesh,
+    │                              decoration scatter, shore foam texture, and firefly
+    │                              positions in one call.
     ├── ui/
     │   ├── ToolManager.js      ← Pointer events on the canvas. Brush size (1, 2, 3, or 5)
     │   │                          only applies to terrain tools. Inspect prefers creatures

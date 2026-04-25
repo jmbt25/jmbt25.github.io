@@ -2,9 +2,11 @@ import * as THREE from 'three';
 import { Camera3D } from './Camera3D.js';
 import { TileRenderer3D } from './TileRenderer3D.js';
 import { EntityRenderer3D } from './EntityRenderer3D.js';
+import { TerrainDecorations } from './TerrainDecorations.js';
 import { SkySystem } from './SkySystem.js';
 import { WaterPlane } from './WaterPlane.js';
 import { ParticleSystem } from './ParticleSystem.js';
+import { Fireflies } from './Fireflies.js';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../core/constants.js';
 
 export class Renderer3D {
@@ -12,7 +14,7 @@ export class Renderer3D {
     this.canvas   = canvas;
     this.world    = world;
     this.registry = registry;
-    this.civ      = null;     // injected by main.js after construction
+    this.civ      = null;
     this.highlighted = null;
 
     const w = canvas.width;
@@ -29,25 +31,52 @@ export class Renderer3D {
     this.webglRenderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.webglRenderer.toneMappingExposure = 1.05;
 
+    // Shadows transform the look from "flat polygons" to "real 3D world".
+    // PCF soft shadows are a good speed/quality compromise.
+    this.webglRenderer.shadowMap.enabled = true;
+    this.webglRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0x0d1117, WORLD_WIDTH * 0.95, WORLD_WIDTH * 1.9);
+    this.scene.fog = new THREE.Fog(0x0d1117, WORLD_WIDTH * 1.05, WORLD_WIDTH * 2.0);
 
     this.camera3d = new Camera3D(canvas, w, h);
 
     this.tileRenderer3d   = new TileRenderer3D();
     this.entityRenderer3d = new EntityRenderer3D();
+    this.decorations      = new TerrainDecorations(world, this.tileRenderer3d);
     this.skySystem        = new SkySystem(this.scene);
     this.waterPlane       = new WaterPlane();
     this.particles        = new ParticleSystem();
+    this.fireflies        = new Fireflies();
+
+    // The sky's directional sun casts shadows. Set up shadow camera bounds once.
+    const sun = this.skySystem.sun;
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far  = 600;
+    const sb = Math.max(WORLD_WIDTH, WORLD_HEIGHT) * 0.85;
+    sun.shadow.camera.left   = -sb;
+    sun.shadow.camera.right  =  sb;
+    sun.shadow.camera.top    =  sb;
+    sun.shadow.camera.bottom = -sb;
+    sun.shadow.bias          = -0.0006;
+    sun.shadow.normalBias    =  0.06;
+    sun.shadow.radius        =  3;
 
     this.scene.add(this.tileRenderer3d.mesh);
     this.scene.add(this.tileRenderer3d.cursor);
     this.scene.add(this.waterPlane.mesh);
     this.scene.add(this.particles.points);
+    this.scene.add(this.fireflies.points);
+    for (const m of this.decorations.allMeshes) this.scene.add(m);
     for (const m of this.entityRenderer3d.allMeshes) this.scene.add(m);
     this.scene.add(this.entityRenderer3d.highlight);
 
     this.tileRenderer3d.rebuild(world);
+    this.decorations.rebuild();
+    this.waterPlane.setShoreFromWorld(world);
+    this.fireflies.scatter(world, this.tileRenderer3d);
 
     this._raycaster = new THREE.Raycaster();
     this._ndc = new THREE.Vector2();
@@ -60,11 +89,19 @@ export class Renderer3D {
     this.waterPlane.setHighlightColor(this._fogScratch);
     this.particles.setColor(this._fogScratch);
 
+    // Keep the sun's shadow camera centred on the scene so the sun's arc
+    // motion doesn't drag the shadow frustum off the world.
+    const sun = this.skySystem.sun;
+    if (sun.castShadow) {
+      sun.target.position.set(WORLD_WIDTH / 2, 0, WORLD_HEIGHT / 2);
+    }
+
     this.camera3d.update();
     this.entityRenderer3d.update(this.registry, this.tileRenderer3d, this.civ);
     this.entityRenderer3d.setHighlighted(this.highlighted, this.tileRenderer3d);
     this.waterPlane.update();
     this.particles.update(this.registry, this.tileRenderer3d);
+    this.fireflies.update(this.skySystem.getPhase());
     this.webglRenderer.render(this.scene, this.camera3d.camera);
   }
 
@@ -75,9 +112,11 @@ export class Renderer3D {
 
   rebuildTerrain() {
     this.tileRenderer3d.rebuild(this.world);
+    this.decorations.rebuild();
+    this.waterPlane.setShoreFromWorld(this.world);
+    this.fireflies.scatter(this.world, this.tileRenderer3d);
   }
 
-  /** Convert canvas pixel coords → tile coords by raycasting onto the terrain mesh. */
   raycastTile(screenX, screenY) {
     const rect = this.canvas.getBoundingClientRect();
     this._ndc.x = (screenX / rect.width) * 2 - 1;
@@ -100,12 +139,10 @@ export class Renderer3D {
     this.tileRenderer3d.clearCursor();
   }
 
-  /** Reset camera to its starting orbit pose. */
   resetCamera() {
     this.camera3d.resetToDefault();
   }
 
-  /** Smoothly pan the camera target to (worldX, worldZ). */
   panTo(worldX, worldZ) {
     this.camera3d.panTo(worldX, worldZ);
   }
