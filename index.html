@@ -119,6 +119,14 @@
       <canvas id="graph-canvas" width="220" height="80"></canvas>
     </div>
 
+    <!-- Tribes -->
+    <div class="panel">
+      <div class="panel-title">Tribes</div>
+      <div id="tribes-body">
+        <div class="tribes-empty">No tribes yet</div>
+      </div>
+    </div>
+
     <!-- Inspector -->
     <div class="panel" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
       <div class="panel-title">Inspector</div>
@@ -129,10 +137,11 @@
 
     <!-- Legend -->
     <div id="legend">
-      <div class="legend-row"><div class="legend-dot" style="background:var(--c-herbivore)"></div>Herbivore — eats plants</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--c-herbivore)"></div>Herbivore — grazes plants</div>
       <div class="legend-row"><div class="legend-dot" style="background:var(--c-predator)"></div>Predator — hunts herbivores &amp; humans</div>
-      <div class="legend-row"><div class="legend-dot" style="background:var(--c-human)"></div>Human — eats both, flees predators</div>
-      <div class="legend-row"><div class="legend-dot" style="background:var(--c-plant)"></div>Plant — food source, spreads naturally</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--c-human)"></div>Human — forms tribes, builds huts, wages war</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--c-plant)"></div>Plant — spreads naturally on grass &amp; forest</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#ffd34d"></div>★ Special — has a unique trait</div>
     </div>
 
   </aside>

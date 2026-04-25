@@ -239,6 +239,39 @@ html, body {
   line-height: 1.6;
 }
 
+/* Tribes panel */
+.tribe-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: 11px;
+  color: var(--text);
+}
+.tribe-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.tribe-name { flex: 1; color: var(--text-bright); }
+.tribe-count {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+}
+.tribe-war {
+  color: #ff8c5a;
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 4px;
+}
+.tribes-empty {
+  color: var(--text-dim);
+  font-size: 11px;
+  text-align: center;
+  padding: 6px 0;
+}
+
 /* Legend at bottom of sidebar */
 #legend {
   padding: 8px 12px;

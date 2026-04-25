@@ -4,13 +4,14 @@
  * ES module: loaded via <script type="module"> — deferred by default.
  */
 
-import { World }               from './world/World.js';
-import { WorldGen }            from './world/WorldGen.js';
-import { EntityRegistry }      from './entities/EntityRegistry.js';
-import { SimulationManager }   from './sim/SimulationManager.js';
-import { Renderer3D }          from './render/Renderer3D.js';
-import { UIManager }           from './ui/UIManager.js';
-import { SIM_TICK_MS, TYPE }   from './core/constants.js';
+import { World }                from './world/World.js';
+import { WorldGen }             from './world/WorldGen.js';
+import { EntityRegistry }       from './entities/EntityRegistry.js';
+import { SimulationManager }    from './sim/SimulationManager.js';
+import { CivilizationManager }  from './sim/CivilizationManager.js';
+import { Renderer3D }           from './render/Renderer3D.js';
+import { UIManager }            from './ui/UIManager.js';
+import { SIM_TICK_MS, TYPE }    from './core/constants.js';
 
 const canvas    = document.getElementById('world-canvas');
 resizeCanvas();
@@ -21,12 +22,14 @@ const registry  = new EntityRegistry(world);
 WorldGen.generate(world);
 
 const renderer  = new Renderer3D(canvas, world, registry);
+const civ       = new CivilizationManager(registry, world);
+renderer.civ    = civ;
 
-const sim = new SimulationManager(world, registry);
+const sim = new SimulationManager(world, registry, civ);
 
 seedWorld(world, registry);
 
-const ui = new UIManager({ canvas, world, registry, renderer, sim });
+const ui = new UIManager({ canvas, world, registry, renderer, sim, civ });
 
 let simInterval = setInterval(() => sim.update(), SIM_TICK_MS);
 
@@ -64,5 +67,5 @@ function seedWorld(world, registry) {
 
   spawnRandom(TYPE.HERBIVORE, 55);
   spawnRandom(TYPE.PREDATOR,  12);
-  spawnRandom(TYPE.HUMAN,     10);
+  spawnRandom(TYPE.HUMAN,     14);
 }

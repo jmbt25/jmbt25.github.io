@@ -3,6 +3,7 @@ import { Plant }     from './Plant.js';
 import { Herbivore } from './Herbivore.js';
 import { Predator }  from './Predator.js';
 import { Human }     from './Human.js';
+import { Building }  from './Building.js';
 import { eventBus }  from '../core/eventBus.js';
 
 export class EntityRegistry {
@@ -13,13 +14,19 @@ export class EntityRegistry {
 
   // ── Lifecycle ───────────────────────────────────────────────────────────────
 
-  spawn(type, x, y) {
+  spawn(type, x, y, opts = {}) {
     if (this.entities.size >= MAX_ENTITIES) return null;
 
     // One plant per tile
     if (type === TYPE.PLANT) {
       for (const id of this.world.getEntitiesAt(x, y)) {
         if (this.entities.get(id)?.type === TYPE.PLANT) return null;
+      }
+    }
+    // One building per tile
+    if (type === TYPE.BUILDING) {
+      for (const id of this.world.getEntitiesAt(x, y)) {
+        if (this.entities.get(id)?.type === TYPE.BUILDING) return null;
       }
     }
 
@@ -29,12 +36,13 @@ export class EntityRegistry {
       case TYPE.HERBIVORE: entity = new Herbivore(x, y); break;
       case TYPE.PREDATOR:  entity = new Predator(x, y);  break;
       case TYPE.HUMAN:     entity = new Human(x, y);     break;
+      case TYPE.BUILDING:  entity = new Building(x, y);  break;
       default: return null;
     }
 
     this.entities.set(entity.id, entity);
     this.world.registerEntity(entity);
-    eventBus.emit('entity:born', entity);
+    eventBus.emit('entity:born', { entity, parent: opts.parent ?? null, builder: opts.builder ?? null });
     return entity;
   }
 
@@ -70,7 +78,7 @@ export class EntityRegistry {
   getAll() { return this.entities.values(); }
 
   countByType() {
-    const counts = { plant: 0, herbivore: 0, predator: 0, human: 0 };
+    const counts = { plant: 0, herbivore: 0, predator: 0, human: 0, building: 0 };
     for (const e of this.entities.values()) counts[e.type]++;
     return counts;
   }

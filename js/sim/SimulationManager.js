@@ -4,9 +4,10 @@ import { eventBus } from '../core/eventBus.js';
 const MAX_PLANTS = 1200;
 
 export class SimulationManager {
-  constructor(world, registry) {
+  constructor(world, registry, civ) {
     this.world    = world;
     this.registry = registry;
+    this.civ      = civ;
 
     this.tick    = 0;
     this.paused  = false;
@@ -21,6 +22,25 @@ export class SimulationManager {
       head:      0,
       length:    0,
     };
+
+    // Born/death wiring with civ manager
+    eventBus.on('entity:born', ({ entity, parent, builder }) => {
+      if (entity.type === TYPE.HUMAN) {
+        // Inject civ ref so Human AI can query relations
+        entity.civ = this.civ;
+        this.civ.assignTribe(entity, parent ?? null);
+      } else if (entity.type === TYPE.BUILDING) {
+        const tribe = builder?.tribeId != null
+          ? this.civ.getTribe(builder.tribeId)
+          : null;
+        if (tribe) this.civ.registerHut(entity, tribe);
+      }
+    });
+
+    eventBus.on('entity:died', (entity) => {
+      if (entity.type === TYPE.HUMAN)    this.civ.removeMember(entity);
+      if (entity.type === TYPE.BUILDING) this.civ.removeHut(entity);
+    });
   }
 
   // Called by gameLoop at ~12hz
@@ -43,6 +63,10 @@ export class SimulationManager {
         if (!entity.alive) { toKill.push(entity); continue; }
         if (req) toSpawn.push(req);
 
+      } else if (entity.type === TYPE.BUILDING) {
+        entity.tick();
+        if (!entity.alive) { toKill.push(entity); continue; }
+
       } else {
         const reqs = entity.tick(this.world, this.registry);
         if (!entity.alive) { toKill.push(entity); continue; }
@@ -61,7 +85,10 @@ export class SimulationManager {
 
     for (const req of toSpawn) {
       if (req.type === TYPE.PLANT && plantCount >= MAX_PLANTS) continue;
-      const born = this.registry.spawn(req.type, req.x, req.y);
+      const opts = req.parent
+        ? { parent: req.parent }
+        : (req.builder ? { builder: req.builder } : undefined);
+      const born = this.registry.spawn(req.type, req.x, req.y, opts);
       if (born && req.type === TYPE.PLANT) plantCount++;
     }
 
@@ -75,7 +102,6 @@ export class SimulationManager {
     }
 
     // Rescue spawning: prevents predators/humans from going fully extinct.
-    // Simulates occasional migration from off-world. Only triggers when critically low.
     if (this.tick % 5 === 0) {
       const counts = this.registry.countByType();
       if (counts.predator < 4 && Math.random() < 0.07) {
@@ -89,6 +115,9 @@ export class SimulationManager {
         if (this.world.isPassable(x, y)) this.registry.spawn(TYPE.HUMAN, x, y);
       }
     }
+
+    // Civilization update (centroids, war/peace)
+    this.civ.update(this.tick);
 
     // Record history every 10 ticks
     if (this.tick % 10 === 0) this._recordHistory();

@@ -1,12 +1,17 @@
 import { Entity } from './Entity.js';
-import { SPECIES, TYPE } from '../core/constants.js';
+import { SPECIES, SPECIAL_CHANCE, SIM_TICK_MS, TYPE } from '../core/constants.js';
 import { rand, randInt, randDir } from '../core/rng.js';
+import { rollTraitFor } from './traits.js';
 
 export const STATE = Object.freeze({
   WANDER:    'wander',
   SEEK_FOOD: 'seek_food',
   FLEE:      'flee',
   SEEK_MATE: 'seek_mate',
+  // Civ states (humans only)
+  SEEK_HOME: 'seek_home',
+  BUILD:     'build',
+  WAR:       'war',
 });
 
 export class Creature extends Entity {
@@ -15,6 +20,7 @@ export class Creature extends Entity {
 
     const cfg      = SPECIES[type];
     this.cfg       = cfg;
+    this._cfgOwned = false;
     this.maxAge    = cfg.maxAge + randInt(-cfg.maxAge * 0.15, cfg.maxAge * 0.15);
     this.hunger    = rand() * 0.25;          // 0=full → 1=starving
     this.energy    = 0.4 + rand() * 0.4;     // reproductive energy
@@ -24,6 +30,15 @@ export class Creature extends Entity {
     this.moveClock = 0;
     this.state     = STATE.WANDER;
     this.targetId  = null;
+
+    // Roll for special trait
+    if (rand() < SPECIAL_CHANCE) {
+      const trait = rollTraitFor(type);
+      if (trait) {
+        this.trait = { id: trait.id, name: trait.name, desc: trait.desc };
+        trait.apply(this);
+      }
+    }
   }
 
   /**
@@ -174,7 +189,7 @@ export class Creature extends Entity {
     const ox = this.tileX + randInt(-1, 1);
     const oy = this.tileY + randInt(-1, 1);
     if (!world.inBounds(ox, oy) || !world.isPassable(ox, oy)) return [];
-    return [{ type: this.type, x: ox, y: oy }];
+    return [{ type: this.type, x: ox, y: oy, parent: this }];
   }
 
   _stepToward(world, tx, ty) {
@@ -189,6 +204,20 @@ export class Creature extends Entity {
 
   _tryStep(world, nx, ny) {
     if (!world.inBounds(nx, ny) || !world.isPassable(nx, ny)) return false;
+
+    // Record motion-interp data BEFORE moving so the renderer can lerp.
+    this.prevTileX     = this.tileX;
+    this.prevTileY     = this.tileY;
+    this.moveStartedAt = performance.now();
+    this.moveDurationMs = SIM_TICK_MS * this.cfg.moveEveryNTicks;
+
+    const dx = nx - this.tileX;
+    const dy = ny - this.tileY;
+    if (dx !== 0 || dy !== 0) {
+      // Note: tile Y maps to world Z. atan2(z, x) gives rotation around Y axis.
+      this.heading = Math.atan2(dy, dx);
+    }
+
     world.moveEntityRecord(this, nx, ny);
     return true;
   }

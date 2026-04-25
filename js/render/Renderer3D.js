@@ -9,6 +9,7 @@ export class Renderer3D {
     this.canvas   = canvas;
     this.world    = world;
     this.registry = registry;
+    this.civ      = null;     // injected by main.js after construction
     this.highlighted = null;
 
     const w = canvas.width;
@@ -31,7 +32,7 @@ export class Renderer3D {
 
     this.scene.add(this.tileRenderer3d.mesh);
     this.scene.add(this.tileRenderer3d.cursor);
-    for (const m of Object.values(this.entityRenderer3d.meshes)) this.scene.add(m);
+    for (const m of this.entityRenderer3d.allMeshes) this.scene.add(m);
     this.scene.add(this.entityRenderer3d.highlight);
 
     this._setupLighting();
@@ -55,7 +56,7 @@ export class Renderer3D {
 
   render() {
     this.camera3d.update();
-    this.entityRenderer3d.update(this.registry, this.tileRenderer3d);
+    this.entityRenderer3d.update(this.registry, this.tileRenderer3d, this.civ);
     this.entityRenderer3d.setHighlighted(this.highlighted, this.tileRenderer3d);
     this.webglRenderer.render(this.scene, this.camera3d.camera);
   }
