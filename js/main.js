@@ -8,50 +8,37 @@ import { World }               from './world/World.js';
 import { WorldGen }            from './world/WorldGen.js';
 import { EntityRegistry }      from './entities/EntityRegistry.js';
 import { SimulationManager }   from './sim/SimulationManager.js';
-import { Camera }              from './render/Camera.js';
-import { Renderer }            from './render/Renderer.js';
+import { Renderer3D }          from './render/Renderer3D.js';
 import { UIManager }           from './ui/UIManager.js';
 import { SIM_TICK_MS, TYPE }   from './core/constants.js';
-
-// ── Initialise ────────────────────────────────────────────────────────────────
 
 const canvas    = document.getElementById('world-canvas');
 resizeCanvas();
 
 const world     = new World();
 const registry  = new EntityRegistry(world);
-const camera    = new Camera(canvas.width, canvas.height);
-const renderer  = new Renderer(canvas, world, registry, camera);
 
-// Generate terrain first
 WorldGen.generate(world);
+
+const renderer  = new Renderer3D(canvas, world, registry);
 
 const sim = new SimulationManager(world, registry);
 
-// Seed initial population
 seedWorld(world, registry);
 
-// Wire UI (toolbar, stats, graph, controls)
-const ui = new UIManager({ canvas, world, registry, camera, renderer, sim });
+const ui = new UIManager({ canvas, world, registry, renderer, sim });
 
-// ── Game loop ────────────────────────────────────────────────────────────────
-
-// Simulation runs on a fixed interval (independent of render fps)
 let simInterval = setInterval(() => sim.update(), SIM_TICK_MS);
 
-// Render loop at ~60 fps
 function renderLoop() {
   renderer.render();
   requestAnimationFrame(renderLoop);
 }
 requestAnimationFrame(renderLoop);
 
-// ── Resize handling ───────────────────────────────────────────────────────────
-
 window.addEventListener('resize', () => {
   resizeCanvas();
-  camera.canvasW = canvas.width;
-  camera.canvasH = canvas.height;
+  renderer.resize(canvas.width, canvas.height);
 });
 
 function resizeCanvas() {
@@ -59,8 +46,6 @@ function resizeCanvas() {
   canvas.width    = container.clientWidth;
   canvas.height   = container.clientHeight;
 }
-
-// ── Initial world seed ────────────────────────────────────────────────────────
 
 function seedWorld(world, registry) {
   const W = world.width;

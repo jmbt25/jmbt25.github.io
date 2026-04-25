@@ -5,7 +5,7 @@ import { WorldGen }          from '../world/WorldGen.js';
 import { TYPE }              from '../core/constants.js';
 
 export class UIManager {
-  constructor({ canvas, world, registry, camera, renderer, sim }) {
+  constructor({ canvas, world, registry, renderer, sim }) {
     this.world    = world;
     this.registry = registry;
     this.sim      = sim;
@@ -13,7 +13,7 @@ export class UIManager {
 
     // Wire up tool manager
     this.toolManager = new ToolManager(
-      canvas, world, registry, camera, renderer,
+      canvas, world, registry, renderer,
       (entity, tx, ty) => this._onInspect(entity, tx, ty),
     );
 
@@ -58,6 +58,7 @@ export class UIManager {
     document.getElementById('btn-regenerate')?.addEventListener('click', () => {
       this.registry.clear();
       WorldGen.generate(this.world);
+      this.renderer.rebuildTerrain();
       this.sim.tick = 0;
       this.sim.resetHistory();
       this._seedWorld();
