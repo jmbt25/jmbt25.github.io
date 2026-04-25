@@ -1,0 +1,17 @@
+# Local Claude Code project memory — kept on disk for sessions, not published.
+CLAUDE.md
+.claude/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Local environment
+.env
+.env.local
+node_modules/
