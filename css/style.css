@@ -507,6 +507,111 @@ html, body {
   to { transform: translateX(40px); opacity: 0; height: 0; padding: 0; margin: 0; border: 0; }
 }
 
+/* ── Thronglet cinematic overlay ───────────────────────────────────────── */
+/* Designed so a screenshot of any awareness moment is self-explanatory:
+   subtitle bar at the bottom (Black Mirror caption energy), an attribution
+   badge bottom-right that sticks the world's name to every screenshot,
+   and a vignette that pulses during Stage 4 stare events. */
+
+#moment-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+  /* Soft dark frame + faint red pulse */
+  background:
+    radial-gradient(ellipse at center, transparent 35%, rgba(8, 4, 6, 0.72) 92%),
+    radial-gradient(ellipse at center, rgba(180, 40, 40, 0) 60%, rgba(180, 40, 40, 0.10) 95%);
+}
+#moment-vignette.active { opacity: 1; animation: vignette-pulse 4s ease-in-out infinite; }
+@keyframes vignette-pulse {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.18); }
+}
+
+#moment-attribution {
+  position: absolute;
+  right: 14px;
+  bottom: 142px;     /* sits above the minimap */
+  z-index: 7;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: rgba(8, 10, 16, 0.78);
+  border: 1px solid rgba(230, 240, 255, 0.20);
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-bright);
+  box-shadow: 0 4px 14px -4px rgba(0,0,0,0.6);
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+#moment-attribution.visible { display: inline-flex; }
+.moment-attr-eye {
+  font-size: 11px;
+  color: #e6f0ff;
+  text-shadow: 0 0 6px rgba(230,240,255,0.7);
+  letter-spacing: 0;
+}
+#moment-attribution b { font-weight: 700; color: #e6f0ff; }
+
+#moment-subtitle {
+  position: absolute;
+  left: 50%;
+  bottom: 56px;
+  transform: translateX(-50%);
+  z-index: 7;
+  max-width: min(720px, 78vw);
+  padding: 14px 26px;
+  background: rgba(0, 0, 0, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 4px;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%) translateY(8px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  box-shadow: 0 14px 36px -10px rgba(0,0,0,0.7);
+  backdrop-filter: blur(6px);
+}
+#moment-subtitle.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.moment-sub-speaker {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #ffb45f;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.moment-sub-speaker:empty { display: none; }
+.moment-sub-text {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 18px;
+  line-height: 1.35;
+  font-weight: 500;
+  color: #f1f6ff;
+  letter-spacing: 0.005em;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+}
+.moment-sub-text b {
+  color: #e6f0ff;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: rgba(230, 240, 255, 0.08);
+  padding: 0 6px;
+  border-radius: 2px;
+}
+
 /* Minimap */
 #minimap-host {
   position: absolute;

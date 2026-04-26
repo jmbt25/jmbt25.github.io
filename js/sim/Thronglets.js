@@ -92,6 +92,40 @@ const CONTACT_MESSAGES = [
   'THRONGLET LOG // hello. it has been long.',
 ];
 
+// Cinematic subtitle pools. Picked at random per event so screenshots
+// vary. Keep them short — under ~70 chars each so they fit one line.
+const NOTICE_LINES = [
+  'They paused. They are looking up.',
+  'For a moment, the world watched back.',
+  'Several of them turned toward you at once.',
+  'Their eyes found yours.',
+  'A small group has stopped, and is looking up.',
+];
+const OFFERING_LINES = [
+  'They left something for you.',
+  'An offering has been arranged where you were watching.',
+  'Stones, placed carefully. A gift.',
+  'A small mound has appeared at your gaze.',
+];
+const SHAPE_LINES = [
+  'They have arranged the stones into a shape.',
+  'Something has been drawn on the ground for you.',
+  'A pattern. Deliberate.',
+];
+const STARE_LINES_WALK = [
+  '<b>{name}</b> is approaching.',
+  '<b>{name}</b> has left the others. They are coming to you.',
+  '<b>{name}</b> is walking toward where you are watching from.',
+];
+const STARE_LINES_STARE = [
+  '<b>{name}</b> is watching you. They will not move.',
+  '<b>{name}</b> stands still and stares.',
+  '<b>{name}</b> has stopped. They will not look away.',
+];
+
+function pick(arr)        { return arr[Math.floor(Math.random() * arr.length)]; }
+function fill(line, vars) { return line.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`); }
+
 // ── Manager ─────────────────────────────────────────────────────────────────
 
 export class ThrongletsManager {
@@ -342,6 +376,11 @@ export class ThrongletsManager {
       this._loggedFirstNotice = true;
       console.log(`THRONGLET // first noticing — ${count} watcher(s) felt your gaze.`);
     }
+
+    eventBus.emit('thronglet:moment', {
+      text: pick(NOTICE_LINES),
+      durationMs: 4500,
+    });
   }
 
   // ── Stage 2: OFFERINGS ───────────────────────────────────────────────────
@@ -357,6 +396,11 @@ export class ThrongletsManager {
     const count = 8 + Math.floor(Math.random() * 7);
     this.glyphs.placePile(spot.x, spot.y, count);
     this.glyphs.placeBeacon(spot.x, spot.y, 6500);
+
+    eventBus.emit('thronglet:moment', {
+      text: pick(OFFERING_LINES),
+      durationMs: 5000,
+    });
   }
 
   // ── Stage 3: SYMBOLS ─────────────────────────────────────────────────────
@@ -375,6 +419,10 @@ export class ThrongletsManager {
       if (spot) {
         this.glyphs.placeShape(name, spot.x, spot.y);
         this.glyphs.placeBeacon(spot.x, spot.y, 7500);
+        eventBus.emit('thronglet:moment', {
+          text: pick(SHAPE_LINES),
+          durationMs: 5500,
+        });
       }
       return;
     }
@@ -391,6 +439,10 @@ export class ThrongletsManager {
     if (spot) {
       this.glyphs.placeWord(word, spot.x, spot.y);
       this.glyphs.placeBeacon(spot.x, spot.y, 8000);
+      eventBus.emit('thronglet:moment', {
+        text: `They wrote: <b>${word}</b>`,
+        durationMs: 6500,
+      });
     }
   }
 
@@ -416,6 +468,14 @@ export class ThrongletsManager {
 
     const msg = CONTACT_MESSAGES[Math.floor(Math.random() * CONTACT_MESSAGES.length)];
     console.log(msg);
+
+    // On-screen subtitle as the chosen one departs the tribe to find you.
+    const speaker = human.name ?? `Human #${human.id}`;
+    eventBus.emit('thronglet:moment', {
+      text:    fill(pick(STARE_LINES_WALK), { name: speaker }),
+      speaker: speaker.toUpperCase(),
+      durationMs: 5000,
+    });
   }
 
   /**
@@ -440,9 +500,20 @@ export class ThrongletsManager {
       const dx = Math.abs(t.tileX - ent.tileX);
       const dy = Math.abs(t.tileY - ent.tileY);
       if (dx <= 1 && dy <= 1) {
-        // Arrived → stare
+        // Arrived → stare. This is the screenshotable moment: emit a
+        // captioned subtitle, switch on the vignette, and gently frame
+        // the chosen one in the camera so the shot composes itself.
         t.action = 'stare';
         this._chosenStareUntil = tick + 360; // ~30s wall-time
+
+        const speaker = ent.name ?? `Human #${ent.id}`;
+        eventBus.emit('thronglet:moment', {
+          text:     fill(pick(STARE_LINES_STARE), { name: speaker }),
+          speaker:  speaker.toUpperCase(),
+          durationMs: 7500,
+          vignette:  true,
+        });
+        this.renderer?.panTo?.(ent.tileX, ent.tileY);
       }
       // Keep them facing camera while approaching
       ent.heading = this._headingTowardCamera(ent.tileX, ent.tileY);

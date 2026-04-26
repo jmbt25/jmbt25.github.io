@@ -6,6 +6,7 @@ import { Toaster }           from './Toaster.js';
 import { Minimap }           from './Minimap.js';
 import { Modals }            from './Modals.js';
 import { FpsMeter }          from './FpsMeter.js';
+import { MomentOverlay }     from './MomentOverlay.js';
 import { WorldGen }          from '../world/WorldGen.js';
 import { TYPE }              from '../core/constants.js';
 import { eventBus }          from '../core/eventBus.js';
@@ -70,6 +71,7 @@ export class UIManager {
     this.minimap     = new Minimap({ world, registry, civ });
     this.modals      = new Modals();
     this.fpsMeter    = new FpsMeter();
+    this.moments     = new MomentOverlay();
 
     this.minimap.onPan = (tx, ty) => this.renderer.panTo(tx, ty);
 
@@ -224,6 +226,7 @@ export class UIManager {
     this.sim.tick = 0;
     this.sim.resetHistory();
     this.toaster.reset();
+    this.moments.reset();
     this._seedWorld();
     this.renderer.highlighted = null;
     this._onInspect(null);
