@@ -9,6 +9,7 @@ import { ParticleSystem } from './ParticleSystem.js';
 import { Fireflies } from './Fireflies.js';
 import { StatusBubbles } from './StatusBubbles.js';
 import { EffectsSystem } from './EffectsSystem.js';
+import { ThrongletGlyphs } from './ThrongletGlyphs.js';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../core/constants.js';
 
 export class Renderer3D {
@@ -52,6 +53,7 @@ export class Renderer3D {
     this.fireflies        = new Fireflies();
     this.statusBubbles    = new StatusBubbles();
     this.effects          = new EffectsSystem(this.tileRenderer3d, registry);
+    this.thrGlyphs        = new ThrongletGlyphs(this.tileRenderer3d);
 
     // The sky's directional sun casts shadows. Set up shadow camera bounds once.
     const sun = this.skySystem.sun;
@@ -74,6 +76,7 @@ export class Renderer3D {
     this.scene.add(this.particles.points);
     this.scene.add(this.fireflies.points);
     this.scene.add(this.effects.points);
+    this.scene.add(this.thrGlyphs.mesh);
     for (const m of this.decorations.allMeshes) this.scene.add(m);
     for (const m of this.entityRenderer3d.allMeshes) this.scene.add(m);
     for (const m of this.statusBubbles.allMeshes) this.scene.add(m);
@@ -110,6 +113,7 @@ export class Renderer3D {
     this.fireflies.update(this.skySystem.getPhase());
     this.statusBubbles.update(this.registry, this.tileRenderer3d);
     this.effects.update();
+    this.thrGlyphs.update();
     this.webglRenderer.render(this.scene, this.camera3d.camera);
   }
 
@@ -123,6 +127,7 @@ export class Renderer3D {
     this.decorations.rebuild();
     this.waterPlane.setShoreFromWorld(this.world);
     this.fireflies.scatter(this.world, this.tileRenderer3d);
+    this.thrGlyphs.refreshElevations();
   }
 
   raycastTile(screenX, screenY) {

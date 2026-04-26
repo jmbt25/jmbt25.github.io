@@ -68,6 +68,15 @@ export class Human extends Creature {
   _decideState(world, registry) {
     const civ = this.civ;
 
+    // 0. Thronglet awareness override — Stage 1+ pause/walk/stare. Set by
+    //    js/sim/Thronglets.js. Acts as the highest priority so the human
+    //    holds position regardless of hunger/threat for the duration.
+    if (this._thronglet) {
+      this.state    = STATE.WANDER;
+      this.targetId = null;
+      return;
+    }
+
     // 1. Flee predators (life-threatening) — keep highest priority.
     if (this.cfg.fleeRadius > 0) {
       const threat = registry.findNearest(TYPE.PREDATOR, this.tileX, this.tileY, this.cfg.fleeRadius, world);
@@ -137,11 +146,35 @@ export class Human extends Creature {
   _act(world, registry, births) {
     if (this.attackCooldown > 0) this.attackCooldown--;
 
+    if (this._thronglet) {
+      this._thronglet_act(world);
+      return;
+    }
+
     switch (this.state) {
       case STATE.WAR:       this._attackEnemy(world, registry); break;
       case STATE.BUILD:     this._buildHut(world, registry, births); break;
       case STATE.SEEK_HOME: this._goHome(world);                break;
       default:              super._act(world, registry, births);
+    }
+  }
+
+  // Drives Thronglet-controlled behaviour. The manager populates
+  // this._thronglet with { action, ... } and clears it when done.
+  _thronglet_act(world) {
+    const t = this._thronglet;
+    if (t.action === 'pause') {
+      // Hold still; the manager set ent.heading already so the body faces camera.
+      return;
+    }
+    if (t.action === 'stare') {
+      return;
+    }
+    if (t.action === 'walk') {
+      const dx = Math.abs(t.tileX - this.tileX);
+      const dy = Math.abs(t.tileY - this.tileY);
+      if (dx <= 1 && dy <= 1) return; // arrived; manager will switch to stare
+      this._stepToward(world, t.tileX, t.tileY);
     }
   }
 

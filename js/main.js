@@ -11,6 +11,7 @@ import { SimulationManager }    from './sim/SimulationManager.js';
 import { CivilizationManager }  from './sim/CivilizationManager.js';
 import { Renderer3D }           from './render/Renderer3D.js';
 import { UIManager }            from './ui/UIManager.js';
+import { ThrongletsManager }    from './sim/Thronglets.js';
 import { SIM_TICK_MS, TYPE }    from './core/constants.js';
 
 const canvas = document.getElementById('world-canvas');
@@ -30,6 +31,15 @@ const sim = new SimulationManager(world, registry, civ);
 seedWorld(world, registry);
 
 const ui = new UIManager({ canvas, world, registry, renderer, sim, civ });
+
+// Thronglets — emergent awareness overlay. Self-contained; safe to remove
+// this block + the two new files (Thronglets.js, ThrongletGlyphs.js) and
+// the small _thronglet hooks in Human.js to disable the feature entirely.
+// Runtime opt-out: ?normal=1 URL param, Ctrl+Shift+T, or window.__thronglets.disable().
+const thronglets = new ThrongletsManager({
+  registry, world, civ, sim, renderer, glyphs: renderer.thrGlyphs,
+});
+window.__thronglets = thronglets;
 
 let simInterval = setInterval(() => sim.update(), SIM_TICK_MS);
 
