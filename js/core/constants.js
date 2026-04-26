@@ -8,14 +8,15 @@ export const MAX_ENTITIES = 2500;
 // Chance a newborn creature is "special" with a unique trait
 export const SPECIAL_CHANCE = 0.05;
 
-// "Skill" system — only humans named Joshua manifest a skill.
-// JOSHUA_SPONTANEOUS_CHANCE: chance any new human (no Joshua parent) is named Joshua.
-// JOSHUA_INHERIT_NAME_CHANCE: chance a Joshua's offspring is also named Joshua.
-// JOSHUA_INHERIT_SKILL_CHANCE: if the offspring is named Joshua, chance their skill matches the parent's (otherwise rerolled).
-export const JOSHUA_NAME = 'Joshua';
-export const JOSHUA_SPONTANEOUS_CHANCE  = 0.04;
-export const JOSHUA_INHERIT_NAME_CHANCE = 0.65;
-export const JOSHUA_INHERIT_SKILL_CHANCE = 0.80;
+// Skill system — independent of name. A small fraction of humans are born
+// with a hereditary skill (Pathfinder, Architect, Ascendant, Patriarch,
+// Champion). Skills can pass parent → child to form lineages.
+//   SKILL_BASE_CHANCE        — chance any newborn human (no skilled parent) is born skilled.
+//   SKILL_INHERIT_CHANCE     — chance a child of a skilled parent is also skilled.
+//   SKILL_INHERIT_SAME_CHANCE — when inheriting, chance the skill matches the parent's exactly.
+export const SKILL_BASE_CHANCE         = 0.04;
+export const SKILL_INHERIT_CHANCE      = 0.55;
+export const SKILL_INHERIT_SAME_CHANCE = 0.75;
 
 // Entity type strings
 export const TYPE = Object.freeze({

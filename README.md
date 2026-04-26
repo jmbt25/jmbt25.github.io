@@ -23,11 +23,11 @@ No installer, no account, no backend — just open the page and the world starts
 | **Plants** | Grow through three stages, spread seeds onto fertile tiles, age slower in forests, spread faster on grass. |
 | **Herbivores** | Graze plants, flee predators (panic-sprint), seek mates, give birth. Herd Instinct lets a flock take a second flee step when together. |
 | **Predators** | Hunt herbivores and humans. Successful kills trigger a Blood Frenzy — a temporary speed buff with a red coat tint. |
-| **Humans** | Live through three life stages — **child → adult → elder**. Children render small and grow visibly; only adults reproduce, fight, and build; elders grey and retire from civic life. Adults form tribes (with at least one buddy), mate within their tribe, build huts, and declare war on neighbours. Some are named **Joshua** and inherit unique skills (Pathfinder, Architect, Ascendant, Patriarch, Champion). |
+| **Humans** | Live through three life stages — **child → adult → elder**. Children render small and grow visibly; only adults reproduce, fight, and build; elders grey and retire from civic life. Adults form tribes (with at least one buddy), mate within their tribe, build huts, and declare war on neighbours. A small fraction are born with a hereditary **skill** — Pathfinder, Architect, Ascendant, Patriarch, or Champion — and tend to pass it to their children, forming dynasties. |
 | **Tribes** | A tribe is a *band*, not a person — organic founding requires co-founders nearby (Sage humans excepted). Tribes need at least 4 living members to declare or maintain a war; fallen tribes (huts standing, no members) are marked as ruins. |
 | **Migration** | When a species fully dies out and the ecology can support its return, a small band arrives at the world edge as a story event — no silent respawning. |
 
-Some creatures are **special** — a 5% chance at birth gives them a trait (Swift, Hardy, Giant, Sage, Warrior, etc.) marked by a glowing gold octahedron above their head. Skills (Joshua-only) are marked by a cyan ring at their feet.
+Some creatures are **special** — a 5% chance at birth gives them a trait (Swift, Hardy, Giant, Sage, Warrior, etc.) marked by a glowing gold octahedron above their head. Humans born with a hereditary skill are marked by a cyan ring at their feet.
 
 Above every creature, a small glyph telegraphs what they're feeling: **!** for fear, **♥** for courtship, **⚔** for combat, **⚒** for building, **+** for gestation, **z** for resting, **…** for hunger, **◉** for *aware of you*.
 

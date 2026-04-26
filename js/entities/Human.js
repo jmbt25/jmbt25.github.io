@@ -1,7 +1,7 @@
 import { Creature, STATE } from './Creature.js';
-import { TYPE, JOSHUA_NAME, JOSHUA_INHERIT_NAME_CHANCE, JOSHUA_INHERIT_SKILL_CHANCE } from '../core/constants.js';
+import { TYPE, SKILL_BASE_CHANCE, SKILL_INHERIT_CHANCE, SKILL_INHERIT_SAME_CHANCE } from '../core/constants.js';
 import { rand, randInt } from '../core/rng.js';
-import { rollSpontaneousName, pickOrdinaryName, isJoshua } from './names.js';
+import { pickName } from './names.js';
 import { rollSkill, getSkillById } from './skills.js';
 import { eventBus } from '../core/eventBus.js';
 
@@ -46,28 +46,24 @@ export class Human extends Creature {
   }
 
   _assignIdentity(parent) {
-    // Names + skill inheritance from parent (if any)
-    let name, skill = null;
-    if (parent && isJoshua(parent.name)) {
-      // Joshua bloodline — high chance of perpetuating the name
-      if (rand() < JOSHUA_INHERIT_NAME_CHANCE) {
-        name = JOSHUA_NAME;
-        // Inherit parent's exact skill most of the time
-        if (parent.skill && rand() < JOSHUA_INHERIT_SKILL_CHANCE) {
-          skill = getSkillById(parent.skill.id);
-        } else {
-          skill = rollSkill();
-        }
-      } else {
-        name = pickOrdinaryName();
+    // Name: gender-aware first name pick. No name carries any mechanical
+    // weight — "Joshua" is just one of the male names.
+    this.name = pickName(this.sex);
+
+    // Skill: independent of name. A skilled parent has a much higher chance
+    // of producing a skilled child (forms lineages), and that child usually
+    // inherits the parent's exact skill.
+    let skill = null;
+    if (parent?.skill) {
+      if (rand() < SKILL_INHERIT_CHANCE) {
+        skill = (rand() < SKILL_INHERIT_SAME_CHANCE)
+          ? getSkillById(parent.skill.id)
+          : rollSkill();
       }
     } else {
-      // No Joshua parent — small chance of spontaneous emergence
-      name = rollSpontaneousName();
-      if (isJoshua(name)) skill = rollSkill();
+      if (rand() < SKILL_BASE_CHANCE) skill = rollSkill();
     }
 
-    this.name = name;
     if (skill) {
       this.skill = { id: skill.id, name: skill.name, desc: skill.desc };
       skill.apply(this);

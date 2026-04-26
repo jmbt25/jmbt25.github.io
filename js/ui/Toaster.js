@@ -7,7 +7,7 @@
  * trimmed once MAX_LOG_ROWS is exceeded.
  */
 import { eventBus } from '../core/eventBus.js';
-import { TYPE, JOSHUA_NAME } from '../core/constants.js';
+import { TYPE } from '../core/constants.js';
 
 const MAX_LOG_ROWS      = 12;
 const SAME_KEY_THROTTLE = 1500;   // suppress identical messages within this window
@@ -77,15 +77,20 @@ export class Toaster {
   }
 
   _onBorn(entity, parent) {
-    if (entity.type === TYPE.HUMAN && entity.name === JOSHUA_NAME && entity.skill) {
-      const inherited = parent?.name === JOSHUA_NAME;
-      const kind = inherited ? 'born to a Joshua' : 'spontaneously emerged';
+    if (entity.type === TYPE.HUMAN && entity.skill) {
+      const inheritedSame = parent?.skill?.id === entity.skill.id;
+      const inheritedAny  = !!parent?.skill;
+      const blurb = inheritedSame
+        ? `inherited <em>${entity.skill.name}</em> from a parent`
+        : inheritedAny
+          ? `awoke as a <em>${entity.skill.name}</em>, breaking from the family line`
+          : `was born a <em>${entity.skill.name}</em>`;
       this.show(
-        `<b>Joshua</b> ${kind} — <em>${entity.skill.name}</em>`,
-        { kind: 'skill', icon: '◆', key: `joshua-${entity.skill.id}-${inherited ? 'inh' : 'spo'}` },
+        `<b>${entity.name}</b> ${blurb}`,
+        { kind: 'skill', icon: '◆', key: `skill-${entity.skill.id}-${inheritedSame ? 'same' : inheritedAny ? 'reroll' : 'spon'}` },
       );
     } else if (entity.trait && (entity.type === TYPE.PREDATOR || entity.type === TYPE.HUMAN)) {
-      // Only annouce traits for the more notable creatures
+      // Only announce traits for the more notable creatures
       this.show(
         `<b>${this._typeLabel(entity.type)}</b> with <em>${entity.trait.name}</em> appeared`,
         { kind: 'trait', icon: '★', key: `trait-${entity.type}-${entity.trait.id}` },
