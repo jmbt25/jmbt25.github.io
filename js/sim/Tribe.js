@@ -72,6 +72,21 @@ export class Tribe {
   size() {
     return this.members.size + this.huts.size;
   }
+
+  /**
+   * Count of living members only — used by anything that asks "is this tribe
+   * actually a civilisation right now?" (war eligibility, panel sorting).
+   * `size()` includes huts and treats a hut-only ghost tribe as still present;
+   * `livingSize()` is what most game logic should care about.
+   */
+  livingSize() {
+    return this.members.size;
+  }
+
+  /** True if a tribe has fully died out (no members) but still has standing huts. */
+  isFallen() {
+    return this.members.size === 0 && this.huts.size > 0;
+  }
 }
 
 // Used for "no tribe yet" rendering color

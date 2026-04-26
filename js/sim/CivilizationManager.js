@@ -8,6 +8,32 @@ const TRIBE_NAMES = [
   'Morath','Nevoa','Ostari','Petras','Quarn','Reyvold',
 ];
 
+// ── Civilisation thresholds ─────────────────────────────────────────────────
+// Tuned for a "tiny world that feels real" rather than statistical noise.
+
+// Hard cap on simultaneously-active tribes — keeps the world legible.
+const MAX_TRIBES          = 8;
+// Free first-tribe rule: until the world has this many tribes, founding
+// doesn't require buddies (otherwise the very first human can never start one).
+const SOLO_FOUND_LIMIT    = 1;
+// Random chance any given non-Sage human spawns a new tribe (was 0.18).
+const RANDOM_FOUND_CHANCE = 0.05;
+// Co-founders required to organically form a tribe. Need at least 1 other
+// unaffiliated human within this radius — a tribe is a band, not a person.
+const FOUND_BUDDY_RADIUS  = 4;
+// Newly-born humans absorb into the nearest existing tribe within this range.
+const ABSORB_RADIUS       = 18;
+
+// Living-member thresholds for war diplomacy.
+//   MIN_WAR_SIZE     — tribes need this many living members to declare or
+//                      maintain a war. Below this they can't fight; this is
+//                      what stops "1-person tribe at war" / hut-only tribes
+//                      from polluting diplomacy.
+//   FORCED_PEACE_SIZE — at or below this many living members, all wars
+//                      end automatically next diplomacy tick.
+const MIN_WAR_SIZE        = 4;
+const FORCED_PEACE_SIZE   = 3;
+
 /**
  * Owns the tribe roster and runs civilization-scale dynamics:
  *   - founding tribes
@@ -59,30 +85,82 @@ export class CivilizationManager {
   }
 
   /**
-   * Place a human into a tribe. Inheritance order:
-   *   1. Parent's tribe (if any)
-   *   2. Nearest tribe within absorb radius
-   *   3. New tribe (if Sage trait OR < 2 tribes exist OR random small chance)
-   *   4. Otherwise unaffiliated
+   * Same as findNearbyTribe but skips tribes with no living members. Used
+   * for absorbing newly-born humans — joining a hut-only ghost tribe is
+   * pointless and was producing the "tribe with no humans" UI state.
+   */
+  findNearbyLivingTribe(x, y, radius) {
+    let best = null, bestD = radius * radius + 1;
+    for (const t of this.tribes.values()) {
+      if (t.livingSize() === 0) continue;
+      const dx = t.centroid.x - x;
+      const dy = t.centroid.y - y;
+      const d2 = dx*dx + dy*dy;
+      if (d2 < bestD) { bestD = d2; best = t; }
+    }
+    return best;
+  }
+
+  /** All unaffiliated living humans within `radius` tiles of `human`. */
+  _findUnaffiliatedNear(human, radius) {
+    const out = [];
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const nx = human.tileX + dx, ny = human.tileY + dy;
+        if (!this.world.inBounds(nx, ny)) continue;
+        for (const id of this.world.getEntitiesAt(nx, ny)) {
+          const e = this.registry.get(id);
+          if (!e?.alive || e.type !== TYPE.HUMAN) continue;
+          if (e.id === human.id || e.tribeId != null) continue;
+          out.push(e);
+        }
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Place a human into a tribe. Order:
+   *   1. Parent's tribe (if still alive)
+   *   2. Nearest *living* tribe within ABSORB_RADIUS
+   *   3. Stop if MAX_TRIBES already exists
+   *   4. Sage humans (canFoundTribe) found alone — that's their whole purpose
+   *   5. Otherwise need ≥1 unaffiliated buddy nearby AND pass a low random
+   *      roll. A "tribe" without at least two co-founders isn't a tribe.
+   *   6. Otherwise unaffiliated (will likely cluster up later)
    */
   assignTribe(human, parent = null) {
+    // 1. Parent's tribe
     if (parent?.tribeId) {
       const t = this.tribes.get(parent.tribeId);
       if (t) { t.addMember(human); return t; }
     }
 
-    // Adopt nearest existing tribe within range
-    const nearby = this.findNearbyTribe(human.tileX, human.tileY, 18);
+    // 2. Adopt nearest living tribe within range
+    const nearby = this.findNearbyLivingTribe(human.tileX, human.tileY, ABSORB_RADIUS);
     if (nearby) {
       nearby.addMember(human);
       return nearby;
     }
 
-    // Found a new tribe under certain conditions
-    const canFound = human.canFoundTribe || this.tribes.size < 2 || rand() < 0.18;
-    if (canFound) return this.foundTribe(human);
+    // 3. Cap on simultaneous tribes
+    if (this.tribes.size >= MAX_TRIBES) return null;
 
-    return null;
+    // 4. Sage solo founders
+    if (human.canFoundTribe) return this.foundTribe(human);
+
+    // 5. Organic founding — needs co-founders + a roll
+    const canTry = this.tribes.size < SOLO_FOUND_LIMIT || rand() < RANDOM_FOUND_CHANCE;
+    if (!canTry) return null;
+    const buddies = this._findUnaffiliatedNear(human, FOUND_BUDDY_RADIUS);
+    // After the first tribe exists, require at least one buddy. Before
+    // that we allow a single founder so the world can bootstrap.
+    if (buddies.length === 0 && this.tribes.size >= SOLO_FOUND_LIMIT) return null;
+
+    const tribe = this.foundTribe(human);
+    // Bring up to 3 nearby unaffiliated humans into the founding band
+    for (const b of buddies.slice(0, 3)) tribe.addMember(b);
+    return tribe;
   }
 
   removeMember(human) {
@@ -125,8 +203,26 @@ export class CivilizationManager {
 
   _diplomacyTick() {
     const list = [...this.tribes.values()];
-    const a = randChoice(list);
-    const b = randChoice(list);
+
+    // Pre-pass: any tribe whose living headcount has fallen too low is in
+    // no shape to sustain a war. They auto-surrender to every enemy. This
+    // also covers fully-fallen tribes (livingSize = 0): a hut-only ghost
+    // tribe never declares or maintains war.
+    for (const t of list) {
+      if (t.livingSize() < FORCED_PEACE_SIZE && t.enemies.size > 0) {
+        for (const eid of [...t.enemies]) {
+          const enemy = this.tribes.get(eid);
+          if (enemy) t.makePeace(enemy);
+        }
+      }
+    }
+
+    // Only war-capable tribes can be drawn for new diplomacy events
+    const eligible = list.filter(t => t.livingSize() >= MIN_WAR_SIZE);
+    if (eligible.length < 2) return;
+
+    const a = randChoice(eligible);
+    const b = randChoice(eligible);
     if (!a || !b || a === b) return;
 
     const dx = a.centroid.x - b.centroid.x;
@@ -134,14 +230,13 @@ export class CivilizationManager {
     const dist = Math.sqrt(dx*dx + dy*dy);
 
     if (a.isAtWarWith(b.id)) {
-      // Distant tribes occasionally make peace
+      // Distant tribes occasionally make peace once the campaign drags on
       if (dist > 35 && rand() < 0.5) a.makePeace(b);
-      // Or one side wiped down small enough to surrender
-      else if (a.size() < 3 || b.size() < 3) a.makePeace(b);
     } else {
-      // Close, large tribes are more likely to clash
+      // Close, healthy tribes are more likely to clash. Ambition uses
+      // living headcount only — no fighting on behalf of empty huts.
       const proximity = Math.max(0, 40 - dist) / 40;
-      const ambition  = Math.min(a.size(), b.size()) / 12;
+      const ambition  = Math.min(a.livingSize(), b.livingSize()) / 12;
       const warChance = 0.05 + proximity * 0.45 + Math.min(0.25, ambition);
       if (rand() < warChance) a.declareWar(b);
     }

@@ -20,15 +20,20 @@ export class TribesPanel {
 
   _render() {
     if (!this.el) return;
+    // Sort by living members, then by hut count as a tiebreaker. Living
+    // tribes always appear above fallen (hut-only) ones.
     const tribes = [...this.civ.tribes.values()]
-      .sort((a, b) => b.size() - a.size());
+      .sort((a, b) => (b.livingSize() - a.livingSize()) || (b.huts.size - a.huts.size));
     const top = tribes.slice(0, 6);
 
     if (this.metaEl) {
-      const wars = tribes.reduce((acc, t) => acc + (t.enemies.size > 0 ? 1 : 0), 0);
-      this.metaEl.textContent = tribes.length === 0
+      const living = tribes.filter(t => t.livingSize() > 0);
+      // Count active wars only between *living* tribes (fallen tribes are
+      // auto-peaced in CivilizationManager._diplomacyTick).
+      const warCount = living.reduce((acc, t) => acc + (t.enemies.size > 0 ? 1 : 0), 0);
+      this.metaEl.textContent = living.length === 0
         ? '—'
-        : `${tribes.length} active${wars ? ` · ${Math.floor(wars/2 + (wars%2))} war` : ''}`;
+        : `${living.length} active${warCount ? ` · ${Math.floor(warCount/2 + (warCount%2))} war` : ''}`;
     }
 
     if (top.length === 0) {
@@ -37,18 +42,22 @@ export class TribesPanel {
     }
 
     const rows = top.map(t => {
+      const fallen = t.isFallen();
       const enemies = [...t.enemies]
         .map(id => this.civ.getTribe(id))
         .filter(Boolean);
-      const warHTML = enemies.length
+      const warHTML = !fallen && enemies.length
         ? `<div class="tribe-war" title="${enemies.map(e => e.name).join(', ')}">⚔ vs ${enemies.map(e => `<span style="color:${e.color}">${e.name}</span>`).join(', ')}</div>`
         : '';
+      const fallenTag = fallen
+        ? `<span class="tribe-fallen" title="No surviving members — only ruins remain">fallen</span>`
+        : '';
       return `
-        <div class="tribe-row">
+        <div class="tribe-row${fallen ? ' tribe-row-fallen' : ''}">
           <div class="tribe-dot" style="background:${t.color}; color:${t.color}"></div>
-          <span class="tribe-name">${t.name}</span>
+          <span class="tribe-name">${t.name}${fallenTag}</span>
           <span class="tribe-count">
-            <span title="Members">${t.members.size}</span>
+            <span title="Living members">${t.members.size}</span>
             <span class="sep">·</span>
             <span title="Huts">${t.huts.size}🏠</span>
           </span>
