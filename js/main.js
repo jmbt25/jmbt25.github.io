@@ -76,7 +76,11 @@ function seedWorld(world, registry) {
     }
   };
 
-  spawnRandom(TYPE.HERBIVORE, 55);
-  spawnRandom(TYPE.PREDATOR,  12);
-  spawnRandom(TYPE.HUMAN,     14);
+  // Larger initial seed so generations can actually unfold without leaning
+  // on respawn ops. Humans bumped 14 → 28 (two viable founding bands worth
+  // of genetic diversity); herbivores up so there's prey margin; predators
+  // unchanged so they don't dominate before tribes form.
+  spawnRandom(TYPE.HERBIVORE, 75);
+  spawnRandom(TYPE.PREDATOR,  10);
+  spawnRandom(TYPE.HUMAN,     28);
 }

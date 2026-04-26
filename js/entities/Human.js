@@ -5,6 +5,24 @@ import { rollSpontaneousName, pickOrdinaryName, isJoshua } from './names.js';
 import { rollSkill, getSkillById } from './skills.js';
 import { eventBus } from '../core/eventBus.js';
 
+// ── Human life stages ──────────────────────────────────────────────────────
+// A human's age is split into three stages as a fraction of their personal
+// maxAge (so longer-lived humans get longer childhoods and elderhoods too).
+//   child   — first 18%: cannot reproduce, fight, or build. Smaller.
+//   adult   — middle 60%: full participation; this is the reproductive window.
+//   elder   — last 22%: cannot reproduce, fight, or build. Greying.
+// These come from rough demographic ratios and tune to "feels right" — not
+// real-world demographics, just enough that you can see generations turning.
+export const LIFE = Object.freeze({
+  CHILD_END:  0.18,
+  ELDER_BEGIN: 0.78,
+});
+export const STAGE = Object.freeze({
+  CHILD: 'child',
+  ADULT: 'adult',
+  ELDER: 'elder',
+});
+
 /**
  * Human extends Creature with civilization behaviours:
  *   - belongs to a tribe (this.tribeId)
@@ -56,6 +74,22 @@ export class Human extends Creature {
     }
   }
 
+  /** Fraction of life lived [0, 1+]. */
+  get ageRatio() {
+    return this.maxAge > 0 ? this.age / this.maxAge : 0;
+  }
+
+  /** Current life stage — derived from age ratio. */
+  get lifeStage() {
+    const r = this.ageRatio;
+    if (r < LIFE.CHILD_END)   return STAGE.CHILD;
+    if (r >= LIFE.ELDER_BEGIN) return STAGE.ELDER;
+    return STAGE.ADULT;
+  }
+
+  /** True if currently in the reproductive window. */
+  get isAdult() { return this.lifeStage === STAGE.ADULT; }
+
   tick(world, registry) {
     // Ascendant: strength scales with age, capped.
     if (this.ascendant) {
@@ -87,8 +121,9 @@ export class Human extends Creature {
       }
     }
 
-    // 2. Hunt enemy tribe members. Warriors / Champions don't need to be hungry to hunt.
-    if (civ && this.tribeId != null) {
+    // 2. Hunt enemy tribe members. Adults only — children flee, elders rest.
+    //    Warriors / Champions don't need to be hungry to hunt.
+    if (civ && this.tribeId != null && this.isAdult) {
       const isCombatFocused = this.trait?.id === 'warrior' || this.skill?.id === 'champion';
       const lookRadius = isCombatFocused ? this.cfg.visionRadius + 2 : this.cfg.visionRadius;
       const enemy = civ.findEnemyHumanNear(this, lookRadius);
@@ -99,15 +134,16 @@ export class Human extends Creature {
       }
     }
 
-    // 3. Seek food when hungry
+    // 3. Seek food when hungry — every life stage needs to eat
     if (this.hunger > this.cfg.hungerThreshold) {
       this.state    = STATE.SEEK_FOOD;
       this.targetId = null;
       return;
     }
 
-    // 4. Build a hut if well-fed, energetic, in good terrain, and tribe needs one
+    // 4. Build a hut — adults only, with the usual fitness gates
     if (
+      this.isAdult &&
       this.tribeId != null &&
       this.hunger < this.cfg.buildHungerCeiling &&
       this.energy > 0.6 &&
@@ -118,8 +154,9 @@ export class Human extends Creature {
       return;
     }
 
-    // 5. Reproduce
-    if (!this.gestating && this.energy >= this.cfg.reproduceThreshold) {
+    // 5. Reproduce — adults only. This is the entire reason life stages
+    //    exist; children and elders can't be the reason a tribe survives.
+    if (this.isAdult && !this.gestating && this.energy >= this.cfg.reproduceThreshold) {
       this.state    = STATE.SEEK_MATE;
       this.targetId = null;
       return;
@@ -155,7 +192,45 @@ export class Human extends Creature {
       case STATE.WAR:       this._attackEnemy(world, registry); break;
       case STATE.BUILD:     this._buildHut(world, registry, births); break;
       case STATE.SEEK_HOME: this._goHome(world);                break;
+      case STATE.SEEK_MATE: this._seekMate(world, registry);    break;
       default:              super._act(world, registry, births);
+    }
+  }
+
+  /**
+   * Override the base _seekMate so humans only pair with:
+   *   - other adults (no child or elder mates)
+   *   - same tribe (or both unaffiliated — wandering bands can pair up)
+   * This + the adult-only gate above is what turns reproduction from
+   * "any two humans bumping into each other" into a kin-group event.
+   */
+  _seekMate(world, registry) {
+    const r = this.cfg.mateRadius ?? 8;
+    let best = null, bestDist = r + 1;
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const nx = this.tileX + dx, ny = this.tileY + dy;
+        if (!world.inBounds(nx, ny)) continue;
+        for (const id of world.getEntitiesAt(nx, ny)) {
+          const e = registry.get(id);
+          if (!e?.alive || e.type !== TYPE.HUMAN) continue;
+          if (e.id === this.id) continue;
+          if (e.sex === this.sex) continue;
+          if (e.gestating) continue;
+          if (!e.isAdult) continue;
+          // Same tribe, or both unaffiliated. Cross-tribe pairing is rare
+          // enough in real kin-groups that we forbid it outright here.
+          if (this.tribeId !== e.tribeId) continue;
+          const d = Math.abs(dx) + Math.abs(dy);
+          if (d < bestDist) { bestDist = d; best = e; }
+        }
+      }
+    }
+    if (!best) { this._wander(world); return; }
+    if (Math.abs(best.tileX - this.tileX) <= 1 && Math.abs(best.tileY - this.tileY) <= 1) {
+      this._reproduce(best);
+    } else {
+      this._stepToward(world, best.tileX, best.tileY);
     }
   }
 

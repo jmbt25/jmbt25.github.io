@@ -106,20 +106,13 @@ export class SimulationManager {
       }
     }
 
-    // Rescue spawning: prevents predators/humans from going fully extinct.
-    if (this.tick % 5 === 0) {
-      const counts = this.registry.countByType();
-      if (counts.predator < 4 && Math.random() < 0.07) {
-        const x = Math.floor(Math.random() * this.world.width);
-        const y = Math.floor(Math.random() * this.world.height);
-        if (this.world.isPassable(x, y)) this.registry.spawn(TYPE.PREDATOR, x, y);
-      }
-      if (counts.human < 6 && Math.random() < 0.09) {
-        const x = Math.floor(Math.random() * this.world.width);
-        const y = Math.floor(Math.random() * this.world.height);
-        if (this.world.isPassable(x, y)) this.registry.spawn(TYPE.HUMAN, x, y);
-      }
-    }
+    // Migration: silent low-rate respawning has been removed. The world is
+    // now allowed to lose species — humans live and die on their own terms,
+    // and a tribe that bleeds out is gone. The only fallback is "migration":
+    // every few minutes, if a species is FULLY extinct (and the ecology
+    // could plausibly support its return), a small band arrives at the
+    // world edge as a story event that gets toasted/logged.
+    if (this.tick % 600 === 0) this._maybeMigrate();
 
     // Civilization update (centroids, war/peace)
     this.civ.update(this.tick);
@@ -128,6 +121,55 @@ export class SimulationManager {
     if (this.tick % 10 === 0) this._recordHistory();
 
     eventBus.emit('sim:tick', { tick: this.tick, speed: this.speed });
+  }
+
+  /**
+   * Story-level migration. Called every 600 sim ticks (~50s). If a species
+   * is fully extinct and the world could support them, drop a small band
+   * at a passable tile near the world edge and emit a 'world:migration'
+   * event so the UI can toast it.
+   */
+  _maybeMigrate() {
+    const counts = this.registry.countByType();
+
+    // Humans return only if there are no humans AND no occupied huts (truly
+    // gone, not just a bad year). Need some plant cover to feed them.
+    if (counts.human === 0 && counts.building === 0 && counts.plant >= 30) {
+      const band = this._dropBandNearEdge(TYPE.HUMAN, 4 + Math.floor(Math.random() * 3));
+      if (band > 0) {
+        eventBus.emit('world:migration', { type: TYPE.HUMAN, count: band });
+      }
+    }
+
+    // Predators return only if they're extinct and there's plenty of prey.
+    if (counts.predator === 0 && (counts.herbivore + counts.human) >= 25) {
+      const band = this._dropBandNearEdge(TYPE.PREDATOR, 2 + Math.floor(Math.random() * 2));
+      if (band > 0) {
+        eventBus.emit('world:migration', { type: TYPE.PREDATOR, count: band });
+      }
+    }
+  }
+
+  /** Place `n` of `type` on adjacent passable tiles near the world edge. */
+  _dropBandNearEdge(type, n) {
+    const W = this.world.width, H = this.world.height;
+    // Pick an edge anchor
+    const edge = Math.floor(Math.random() * 4);
+    let cx, cy;
+    if (edge === 0)      { cx = Math.floor(Math.random() * W); cy = 1; }
+    else if (edge === 1) { cx = Math.floor(Math.random() * W); cy = H - 2; }
+    else if (edge === 2) { cx = 1;     cy = Math.floor(Math.random() * H); }
+    else                 { cx = W - 2; cy = Math.floor(Math.random() * H); }
+
+    let placed = 0;
+    for (let attempt = 0; attempt < 60 && placed < n; attempt++) {
+      const dx = Math.floor(Math.random() * 5) - 2;
+      const dy = Math.floor(Math.random() * 5) - 2;
+      const x = cx + dx, y = cy + dy;
+      if (!this.world.inBounds(x, y) || !this.world.isPassable(x, y)) continue;
+      if (this.registry.spawn(type, x, y)) placed++;
+    }
+    return placed;
   }
 
   _recordHistory() {

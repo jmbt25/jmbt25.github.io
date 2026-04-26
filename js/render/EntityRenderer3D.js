@@ -240,8 +240,20 @@ const HAIR_COLORS = [
   new THREE.Color('#dadada'),  // grey
 ];
 
+const HAIR_GREY = new THREE.Color('#cfd2d6');
+
 function hairFor(ent) {
-  return HAIR_COLORS[Math.abs(ent.id) % HAIR_COLORS.length];
+  const base = HAIR_COLORS[Math.abs(ent.id) % HAIR_COLORS.length];
+  // Elders grey out their hair as they age into the elder window. We blend
+  // toward HAIR_GREY based on how deep into elderhood they are. Adults and
+  // children get their natural colour unchanged.
+  const r = (typeof ent.ageRatio === 'number') ? ent.ageRatio : -1;
+  if (r >= 0.78) {
+    const t = Math.min(1, (r - 0.78) / 0.20);  // 0 → 1 across the elder phase
+    const out = new THREE.Color().copy(base).lerp(HAIR_GREY, t * 0.85);
+    return out;
+  }
+  return base;
 }
 
 // ── Renderer ──────────────────────────────────────────────────────────────
@@ -438,6 +450,15 @@ export class EntityRenderer3D {
       let s = scale + breath;
       if (ent.type === TYPE.PLANT && ent.stage !== undefined) {
         s = scale * (0.5 + ent.stage * 0.30);
+      }
+      // Humans visibly grow up: children render at ~55% size and ramp to
+      // full size by the end of the child stage. Elders stay full size.
+      if (ent.type === TYPE.HUMAN && typeof ent.ageRatio === 'number') {
+        if (ent.ageRatio < 0.18) {
+          // 0.55 at birth → 1.0 at end of childhood
+          const k = ent.ageRatio / 0.18;
+          s *= 0.55 + 0.45 * k;
+        }
       }
       // Spawn fade-in: ramp from 0 → full size over FADE_IN_MS so newborns
       // grow out of nothing instead of popping at full scale.

@@ -82,6 +82,17 @@ export class UIManager {
     this._bindCanvasReadout();
     this._bindThrongletBadge();
 
+    // Migration story events — surface the only "respawn" left in the sim
+    eventBus.on('world:migration', ({ type, count }) => {
+      const label = type === TYPE.HUMAN
+        ? `<b>A band of ${count} travellers</b> has arrived from beyond the map.`
+        : `<b>${count} predators</b> have wandered into the world.`;
+      this.toaster.show(label, {
+        kind: 'tribe', icon: type === TYPE.HUMAN ? '🧍' : '🐺',
+        key: `migrate-${type}-${count}`,
+      });
+    });
+
     // Periodic ticker for HUD readouts (day/night, FPS already self-driven)
     setInterval(() => this._refreshHud(), 250);
   }
@@ -296,6 +307,10 @@ export class UIManager {
     if (entity.sex       !== undefined) rows.push(['Sex',     entity.sex === 'M' ? 'Male' : 'Female']);
     if (entity.gestating !== undefined && entity.gestating)  rows.push(['Gestating', 'Yes']);
     if (entity.stage     !== undefined) rows.push(['Stage', ['Seedling', 'Young', 'Mature'][entity.stage]]);
+    // Humans expose a lifeStage getter (child / adult / elder)
+    if (entity.lifeStage !== undefined) {
+      rows.push(['Life stage', this._cap(entity.lifeStage)]);
+    }
     if (entity.tribeId != null && this.civ) {
       const t = this.civ.getTribe(entity.tribeId);
       if (t) {
@@ -353,8 +368,8 @@ export class UIManager {
         if (this.registry.spawn(type, x, y)) placed++;
       }
     };
-    spawnRandom(TYPE.HERBIVORE, 55);
-    spawnRandom(TYPE.PREDATOR,  12);
-    spawnRandom(TYPE.HUMAN,     14);
+    spawnRandom(TYPE.HERBIVORE, 75);
+    spawnRandom(TYPE.PREDATOR,  10);
+    spawnRandom(TYPE.HUMAN,     28);
   }
 }

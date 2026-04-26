@@ -560,22 +560,27 @@ export class ThrongletsManager {
   }
 
   _allFreeHumans() {
-    const out = [];
+    // Adults only — children and elders aren't who tribes send to face the
+    // watcher. Falls back to non-adults only if no adults exist (so the
+    // system never silently fails when the world is unusual).
+    const adults = [];
+    const others = [];
     for (const e of this.registry.getAll()) {
-      if (e.alive && e.type === TYPE.HUMAN && !e._thronglet) out.push(e);
+      if (!e.alive || e.type !== TYPE.HUMAN || e._thronglet) continue;
+      if (e.isAdult) adults.push(e);
+      else others.push(e);
     }
-    return out;
+    return adults.length ? adults : others;
   }
 
   _closestHumanTo(tx, ty) {
-    // Two-pass pick: prefer a human with no predator within 5 tiles so the
-    // walk to camera has a fighting chance. If no safe human exists, fall
-    // back to nearest of any.
+    // Prefer adult humans without an adjacent predator; degrade gracefully.
     let safest = null, safestD2 = Infinity;
     let nearest = null, nearestD2 = Infinity;
     for (const e of this.registry.getAll()) {
       if (!e.alive || e.type !== TYPE.HUMAN) continue;
       if (e._thronglet) continue;
+      if (!e.isAdult) continue;
       const dx = e.tileX - tx, dy = e.tileY - ty;
       const d2 = dx*dx + dy*dy;
       if (d2 < nearestD2) { nearestD2 = d2; nearest = e; }
