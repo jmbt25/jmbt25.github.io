@@ -163,73 +163,84 @@ function buildPlantFoliage() {
   return merge([f1, f2, f3]);
 }
 
-// Hut — stone foundation + wooden walls + pyramid roof + door + chimney.
-// The roof stays as a 4-sided cone (i.e. square pyramid) because that IS
-// just a stack of shrinking boxes — perfect for the voxel aesthetic.
+// ── Huts ────────────────────────────────────────────────────────────────
+// Every hut is rendered around a single entity tile but the GEOMETRY is
+// chunky — roughly 2 tiles wide by itself. Tier upgrades add NEW
+// structures at proper multi-tile offsets so a T3 settlement really does
+// occupy a 3×3 footprint visually.
+//
+// Coordinates: +X = forward (door), -X = back (chimney). Adjacent tile
+// offsets are 1.0 in either axis.
+
+// T1 base structures — already a substantial multi-tile cabin.
+
 function buildHutFoundation() {
-  return box(0.84, 0.10, 0.84, 0, 0.05, 0);
+  // Wide stone slab that extends past the walls like a porch.
+  return box(2.10, 0.20, 2.10, 0, 0.10, 0);
 }
 function buildHutWalls() {
-  return box(0.70, 0.42, 0.70, 0, 0.29, 0);
+  // Main cabin body: ~1.6 wide × 1.0 tall × 1.6 deep. Sits on the slab.
+  return box(1.55, 0.95, 1.55, 0, 0.68, 0);
 }
 function buildHutRoof() {
-  // Pyramid roof — 4-sided cone, square base, steeper than before to read
-  // as voxel from any angle.
-  const g = new THREE.ConeGeometry(0.58, 0.42, 4);
+  // Big square pyramid, base wider than walls so eaves overhang.
+  const g = new THREE.ConeGeometry(1.20, 0.85, 4);
   g.rotateY(Math.PI / 4);
-  g.translate(0, 0.71, 0);
+  g.translate(0, 1.58, 0);
   return g;
 }
 function buildHutDoor() {
-  return box(0.04, 0.22, 0.16, 0.36, 0.13, 0);
+  // Visible door on the front face (+X), tall enough to see at zoom-out.
+  return box(0.06, 0.55, 0.36, 0.79, 0.43, 0);
 }
 function buildHutChimney() {
-  return box(0.10, 0.24, 0.10, -0.18, 0.86, -0.18);
+  // Chunky chimney sticking out of the back-left, well above the roof line.
+  const shaft = box(0.24, 0.70, 0.24, -0.55, 1.30, -0.55);
+  const cap   = box(0.32, 0.10, 0.32, -0.55, 1.70, -0.55);
+  return merge([shaft, cap]);
 }
 
-// ── Hut tier add-ons ─────────────────────────────────────────────────────
-// Each tier UPGRADE both adds new structures *and* makes the entire hut
-// scale up (handled at update-time via ent.tier). Visually:
-//   T1 — single house.
-//   T2 — longhouse with a side granary annex (footprint ≈ 2 tiles).
-//   T3 — small compound: longhouse + granary + watchtower + banner
-//        (footprint ≈ 3 tiles). Adds T2's parts plus T3-only ones.
+// ── Tier 2 add-ons — longhouse: loft above + granary annex on the side.
 
-// Tier 2 — second-storey loft cube above the roof.
 function buildHutLoft() {
-  const loft = box(0.46, 0.30, 0.46, 0, 1.05, 0);
-  const cap  = box(0.22, 0.10, 0.22, 0, 1.30, 0);
+  // Second-storey loft sitting ON the roof, with its own little cap.
+  const loft = box(0.95, 0.55, 0.95, 0, 1.90, 0);
+  const cap  = box(0.40, 0.18, 0.40, 0, 2.30, 0);
   return merge([loft, cap]);
 }
 
-// Tier 2 — granary annex offset to the side: gives the hut a clear
-// multi-tile footprint as soon as it upgrades.
 function buildHutGranary() {
-  const base = box(0.42, 0.28, 0.42,  0.78, 0.14,  0.0);
-  const top  = box(0.34, 0.16, 0.34,  0.78, 0.36,  0.0);
-  const cap  = box(0.18, 0.08, 0.18,  0.78, 0.50,  0.0);
-  return merge([base, top, cap]);
+  // Granary cluster on the +Z side, fully on a neighbouring tile (offset 1.55).
+  const slab = box(1.10, 0.16, 1.10, 0, 0.08,  1.55);
+  const base = box(0.85, 0.55, 0.85, 0, 0.43,  1.55);
+  const top  = box(0.65, 0.28, 0.65, 0, 0.84,  1.55);
+  const cap  = box(0.30, 0.14, 0.30, 0, 1.05,  1.55);
+  return merge([slab, base, top, cap]);
 }
 
-// Tier 3 — corner watchtower spire on the back-left of the compound.
+// ── Tier 3 add-ons — compound: tower + banner + outer fence.
+
 function buildHutTower() {
-  const shaft = box(0.20, 0.92, 0.20, -0.34, 0.92, -0.34);
-  const top   = box(0.28, 0.12, 0.28, -0.34, 1.46, -0.34);
-  return merge([shaft, top]);
+  // Tall watchtower on the back-left, clearly on its own adjacent tile.
+  const slab  = box(0.85, 0.16, 0.85, -1.30, 0.08, -1.30);
+  const shaft = box(0.55, 2.20, 0.55, -1.30, 1.26, -1.30);
+  const top   = box(0.75, 0.18, 0.75, -1.30, 2.45, -1.30);
+  const peak  = box(0.30, 0.40, 0.30, -1.30, 2.74, -1.30);
+  return merge([slab, shaft, top, peak]);
 }
 
-// Tier 3 — tribe-coloured banner flying from the watchtower.
 function buildHutBanner() {
-  return box(0.32, 0.20, 0.03, -0.16, 1.34, -0.34);
+  // Tribe-coloured banner flying off the tower, big enough to read across the world.
+  return box(0.55, 0.40, 0.06, -0.85, 2.10, -1.30);
 }
 
-// Tier 3 — a low fence/wall hint along the front of the compound, so the
-// outline reads as an enclosed plot from the air.
 function buildHutFence() {
-  const a = box(0.78, 0.10, 0.06, 0.0, 0.05,  0.55);
-  const b = box(0.06, 0.10, 0.36, 0.40, 0.05, 0.40);
-  const c = box(0.06, 0.10, 0.36,-0.40, 0.05, 0.40);
-  return merge([a, b, c]);
+  // Low stone wall outlining the compound — extends out to ±1.4 in front
+  // and along the right side, so the plot reads as enclosed from above.
+  const front = box(2.50, 0.22, 0.14,  0.0, 0.11,  1.18);
+  const right = box(0.14, 0.22, 2.20,  1.18, 0.11, 0.05);
+  const back  = box(2.40, 0.22, 0.14, 0.10, 0.11, -1.10);
+  return merge([front, right, back]);
 }
 
 // ── Color helpers ─────────────────────────────────────────────────────────
@@ -513,12 +524,10 @@ export class EntityRenderer3D {
           s *= 0.55 + 0.45 * k;
         }
       }
-      // Hut tiers scale the whole structure up so a T3 compound visibly
-      // dwarfs a T1 starter hut at any zoom level.
-      if (ent.type === TYPE.BUILDING && ent.tier) {
-        if (ent.tier === 2) s *= 1.15;
-        else if (ent.tier === 3) s *= 1.32;
-      }
+      // Hut tiers no longer apply a global scale — the bigger geometry +
+      // tier-gated add-on parts (loft, granary, tower, banner, fence) do
+      // the work. A T1 hut is already substantial; T2/T3 grow outward via
+      // those add-ons rather than uniformly scaling.
       // Spawn fade-in: ramp from 0 → full size over FADE_IN_MS so newborns
       // grow out of nothing instead of popping at full scale.
       if (ent.bornAt) {
@@ -616,11 +625,7 @@ export class EntityRenderer3D {
       const k = since / FADE_OUT_MS;
       const ease = 1 - (1 - k) * (1 - k); // ease-out
       const elev = tileRenderer3d.getElevationAt(Math.floor(g.x), Math.floor(g.z));
-      let baseScale = g.scale ?? 1;
-      if (g.type === TYPE.BUILDING && g.tier) {
-        if (g.tier === 2) baseScale *= 1.15;
-        else if (g.tier === 3) baseScale *= 1.32;
-      }
+      const baseScale = g.scale ?? 1;
       const scale = baseScale * (1 - ease);
       this._dummy.position.set(g.x, elev + ease * 0.15, g.z);
       this._dummy.rotation.set(ease * 0.3, -(g.heading ?? 0), 0);
