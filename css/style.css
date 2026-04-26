@@ -468,35 +468,50 @@ html, body {
 }
 
 /* ── Bottom-center resource bars ─────────────────────────────────────── */
+/* Vertical stack per bar: [icon · label · value] on top, meter underneath.
+   Keeps each bar narrow (~98px) so the bottom row always fits between the
+   minimap (left) and the world-seed panel (right). */
 #hud-bottom {
   bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  align-items: center;
-  gap: 18px;
+  align-items: stretch;
+  gap: 14px;
   padding: 8px 14px;
 }
 .resbar {
-  display: grid;
-  grid-template-columns: 16px auto 110px 36px;
-  align-items: center;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 98px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  letter-spacing: 0.1em;
   font-weight: 600;
 }
-.resbar-icon { font-size: 13px; line-height: 1; }
+.resbar::before {
+  /* Top row: icon + label + value rendered via grid on the row */
+  content: '';
+}
+.resbar { grid-template-columns: none; }   /* override any old rule */
+.resbar > .resbar-row {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  align-items: center;
+  gap: 5px;
+}
+.resbar-icon { font-size: 12px; line-height: 1; }
 .resbar-label {
   color: var(--text-dim);
   text-transform: uppercase;
   font-size: 9px;
+  letter-spacing: 0.10em;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .resbar-meter {
   position: relative;
-  height: 6px;
+  height: 5px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(95, 168, 255, 0.15);
   border-radius: 2px;
@@ -1478,14 +1493,25 @@ html, body {
 ::-webkit-scrollbar-thumb:hover { background: rgba(82,102,140,0.5); }
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
-@media (max-width: 1100px) {
-  /* Small screens: drop the awareness column from the bottom bar to save room */
-  #hud-bottom .resbar[data-key="awareness"] { display: none; }
+/* Below 1400px the bottom row of (minimap | resbar | seed) gets tight, so
+   shrink the side panels first and only drop the awareness bar as a last
+   resort. */
+@media (max-width: 1400px) {
+  #minimap-canvas { width: 150px; height: 100px; }
+  #hud-seed { padding: 6px 10px 6px 12px; gap: 8px; }
+  .hud-seed-value { font-size: 10px; letter-spacing: 0.06em; }
 }
-@media (max-width: 900px) {
+@media (max-width: 1180px) {
+  /* Drop the awareness column to free real estate */
+  #hud-bottom .resbar[data-key="awareness"] { display: none; }
+  #minimap-canvas { width: 130px; height: 86px; }
+}
+@media (max-width: 1000px) {
   :root { --sb-w: 220px; }
   #minimap-host { display: none; }
   #hud-tl, #hud-tr { width: 200px; }
+  #hud-bottom .resbar { width: 84px; }
+  .resbar-label { letter-spacing: 0.04em; }
 }
 @media (max-width: 700px) {
   #app { grid-template-columns: 56px 1fr 0; }

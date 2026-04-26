@@ -162,37 +162,47 @@
       </div>
     </div>
 
-    <!-- Bottom-center: species + awareness bars -->
+    <!-- Bottom-center: species + awareness bars (vertical stack per bar) -->
     <div id="hud-bottom" class="hud-panel">
       <div class="resbar" data-key="plant">
-        <span class="resbar-icon" style="color:var(--c-plant)">🌱</span>
-        <span class="resbar-label">PLANTS</span>
+        <div class="resbar-row">
+          <span class="resbar-icon" style="color:var(--c-plant)">🌱</span>
+          <span class="resbar-label">PLANTS</span>
+          <span class="resbar-value" id="count-plant">0</span>
+        </div>
         <span class="resbar-meter"><i id="bar-plant" style="background:var(--c-plant)"></i></span>
-        <span class="resbar-value" id="count-plant">0</span>
       </div>
       <div class="resbar" data-key="herbivore">
-        <span class="resbar-icon" style="color:var(--c-herbivore)">🐑</span>
-        <span class="resbar-label">HERBIVORES</span>
+        <div class="resbar-row">
+          <span class="resbar-icon" style="color:var(--c-herbivore)">🐑</span>
+          <span class="resbar-label">HERBS</span>
+          <span class="resbar-value" id="count-herbivore">0</span>
+        </div>
         <span class="resbar-meter"><i id="bar-herbivore" style="background:var(--c-herbivore)"></i></span>
-        <span class="resbar-value" id="count-herbivore">0</span>
       </div>
       <div class="resbar" data-key="predator">
-        <span class="resbar-icon" style="color:var(--c-predator)">🐺</span>
-        <span class="resbar-label">PREDATORS</span>
+        <div class="resbar-row">
+          <span class="resbar-icon" style="color:var(--c-predator)">🐺</span>
+          <span class="resbar-label">PREDS</span>
+          <span class="resbar-value" id="count-predator">0</span>
+        </div>
         <span class="resbar-meter"><i id="bar-predator" style="background:var(--c-predator)"></i></span>
-        <span class="resbar-value" id="count-predator">0</span>
       </div>
       <div class="resbar" data-key="human">
-        <span class="resbar-icon" style="color:var(--c-human)">🧍</span>
-        <span class="resbar-label">HUMANS</span>
+        <div class="resbar-row">
+          <span class="resbar-icon" style="color:var(--c-human)">🧍</span>
+          <span class="resbar-label">HUMANS</span>
+          <span class="resbar-value" id="count-human">0</span>
+        </div>
         <span class="resbar-meter"><i id="bar-human" style="background:var(--c-human)"></i></span>
-        <span class="resbar-value" id="count-human">0</span>
       </div>
       <div class="resbar" data-key="awareness">
-        <span class="resbar-icon" style="color:var(--c-skill)">◉</span>
-        <span class="resbar-label">AWARENESS</span>
+        <div class="resbar-row">
+          <span class="resbar-icon" style="color:var(--c-skill)">◉</span>
+          <span class="resbar-label">AWARE</span>
+          <span class="resbar-value" id="count-awareness">0%</span>
+        </div>
         <span class="resbar-meter"><i id="bar-awareness" style="background:var(--c-skill)"></i></span>
-        <span class="resbar-value" id="count-awareness">0%</span>
       </div>
     </div>
 
