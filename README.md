@@ -20,14 +20,17 @@ No installer, no account, no backend — just open the page and the world starts
 
 | System | Behaviour |
 |---|---|
-| **Plants** | Grow through three stages, spread seeds onto fertile tiles, age slower in forests, spread faster on grass. |
+| **Plants** | Grow through three stages, spread seeds onto fertile tiles, age slower in forests, spread faster on grass. Tiles within a hut's farm radius treat the plant as cultivated — it ages 45% slower and spreads 3.5× more often. |
 | **Herbivores** | Graze plants, flee predators (panic-sprint), seek mates, give birth. Herd Instinct lets a flock take a second flee step when together. |
 | **Predators** | Hunt herbivores and humans. Successful kills trigger a Blood Frenzy — a temporary speed buff with a red coat tint. |
-| **Humans** | Live through three life stages — **child → adult → elder**. Children render small and grow visibly; only adults reproduce, fight, and build; elders grey and retire from civic life. Adults form tribes (with at least one buddy), mate within their tribe, build huts, and declare war on neighbours. A small fraction are born with a hereditary **skill** — Pathfinder, Architect, Ascendant, Patriarch, or Champion — and tend to pass it to their children, forming dynasties. |
-| **Tribes** | A tribe is a *band*, not a person — organic founding requires co-founders nearby (Sage humans excepted). Tribes need at least 4 living members to declare or maintain a war; fallen tribes (huts standing, no members) are marked as ruins. |
+| **Humans** | Live through three life stages — **child → adult → elder**. Children render small and grow visibly; only adults reproduce, fight, and build; elders grey and retire from civic life. Every adult is assigned a **role** (Woodcutter, Quarrier, Farmer, Hunter, Builder) shown by a coloured hat. Well-fed humans occasionally have twins or triplets so populations can outgrow replacement. A small fraction are born with a hereditary **skill** — Pathfinder, Architect, Ascendant, Patriarch, or Champion — and tend to pass it to their children, forming dynasties. |
+| **Tribes** | A tribe is a *band*, not a person — organic founding requires co-founders nearby (Sage humans excepted). Tribes need at least 4 living members to declare or maintain a war; fallen tribes (huts standing, no members) are marked as ruins. Tribes accumulate **wood** and **stone** as their adults wander past forests and mountains, and use them to **upgrade their huts** through three tiers. |
+| **Huts** | Start as a Tier-1 cabin spanning ~2 tiles. Tier 2 (longhouse) adds a granary annex on a neighbouring tile and a second-storey loft. Tier 3 (grand compound) adds a watchtower with a tribe-coloured banner and a low fence outlining a 3×3 plot. Each upgrade costs wood (and stone for T3); a tribe near forests and mountains can climb all three tiers, an isolated tribe stays at T1 forever. Tier upgrades also grow each hut's HP and food-radius reach. |
 | **Migration** | When a species fully dies out and the ecology can support its return, a small band arrives at the world edge as a story event — no silent respawning. |
 
 Some creatures are **special** — a 5% chance at birth gives them a trait (Swift, Hardy, Giant, Sage, Warrior, etc.) marked by a glowing gold octahedron above their head. Humans born with a hereditary skill are marked by a cyan ring at their feet.
+
+Adult humans wear role-coloured hats so you can read their job at a glance — leather brown for Woodcutters, slate grey for Quarriers, wheat for Farmers, forest green for Hunters, rust orange for Builders. Children and elders show natural hair instead.
 
 Above every creature, a small glyph telegraphs what they're feeling: **!** for fear, **♥** for courtship, **⚔** for combat, **⚒** for building, **+** for gestation, **z** for resting, **…** for hunger, **◉** for *aware of you*.
 
@@ -89,18 +92,21 @@ window.__thronglets.reset()          // wipe persistence and start fresh
 
 ## Visual systems
 
+- **Voxel terrain** — every tile is a stretched cube via a single `InstancedMesh`. Heights step cleanly between water, sand, grass, forest, dirt, mountain and snow biomes. Each tile cube has tiny per-tile vertical jitter and a hash-driven brightness wobble so the grid doesn't read as a perfect lattice; mountain peaks blend toward snow-cap white.
+- **Voxel creatures** — every body part is an axis-aligned `BoxGeometry`, composed into chunky sheep, wolves, humans, evergreens and huts. Per-individual HSL jitter on body and head colours, so a herd reads as individuals. Sclera + pupil cube eyes; predators get amber pupils; humans get role-coloured hats. Newborns fade in; the dead leave fading "ghost" silhouettes instead of popping out.
+- **Multi-tile huts** — Tier-1 huts already span ~2 tiles with a wide stone foundation, a chunky cabin body, a prominent pyramid roof in the tribe's colour, a visible door, and a chimney sticking above the roofline. Tier 2 adds a granary on a neighbouring tile and a second-storey loft; Tier 3 adds a watchtower spire with a tribe banner and a low stone fence — a real 3×3 footprint.
 - **Day / night cycle** — the sky lerps through nine phase stops (night → pre-dawn → sunrise → morning → midday → afternoon → sunset → dusk → night) every ~120 seconds. The sun and moon arc across the sky, casting real shadows; stars fade in at night and fireflies drift over forests.
 - **Water** — animated shader plane with foam along every coast. Highlights pick up the current sky colour, so dawn and dusk paint the sea.
-- **Terrain** — flat-shaded low-poly with hash-jittered vertices for organic peaks. Each biome scatters its own decorations: pine and broadleaf trees in forests, grass tufts and wildflowers on plains, boulders and rocks in mountains, ice spikes on snow, pebbles and driftwood on beaches, reeds along shorelines.
-- **Creatures** — composite low-poly bodies with sclera + pupil eyes, per-individual colour jitter (no two sheep look quite alike), seven hair colours for humans (greying with elderhood), predator-amber eyes, walking sway and idle breathing. Newborns fade in; the dead leave fading "ghost" silhouettes instead of popping out.
-- **Huts** — stone foundation, tribe-coloured pyramid roof, chimney that emits smoke matching the current sky tone.
+- **Bloom postprocessing** — Thronglet beacons, fireflies, and the sun disc get a soft glow via `UnrealBloomPass`; ordinary terrain stays sharp.
 - **Cinematic overlay** — Thronglet awareness moments display Netflix-style subtitles, a soft red vignette during Stage 4 stares, and an attribution badge so screenshots are self-explanatory.
+- **HUD chrome** — pixel-style "MINI WORLD" title (Press Start 2P) over a top-left status panel, a top-right transport + persistent timestamped event log, bottom-center species and awareness bars, and a bottom-right world seed display with a die-icon to roll a fresh world. Everything floats over the canvas, framed by a subtle red glow.
 
 ## Tech stack
 
 - Vanilla **HTML / CSS / ES modules** — no build step, no bundler, no package manager.
-- **Three.js 0.170** loaded from a CDN via `<script type="importmap">`.
+- **Three.js 0.170** loaded from a CDN via `<script type="importmap">`. Postprocessing addons (`EffectComposer`, `UnrealBloomPass`) come from the same CDN.
 - WebGL shadows (PCF soft), ACES tone mapping, sRGB output.
+- World seeds are 12-character base36 strings (e.g. `ABCD-2345-WXYZ`). Append `?seed=ABCD-2345-WXYZ` to the URL to load a specific world.
 - All persistent state is in `localStorage` under the `thronglets_*` namespace.
 - Hosted on **GitHub Pages**.
 
@@ -246,10 +252,20 @@ for (const e of toKill)  registry.kill(e);
 for (const r of toSpawn) registry.spawn(r.type, r.x, r.y, r.opts);
 ```
 
-This pattern is the difference between "works for 50 entities" and "works for 2,500".
+This pattern is the difference between "works for 50 entities" and "works for 6,000".
 
 **5 · Layered features, not stacked branches.**
-Civilisations and Thronglet awareness aren't bolted into `Human.tick()` — they sit *outside* the entity loop and listen to events. `CivilizationManager` subscribes to `entity:born` for tribe assignment and `entity:died` for hut bookkeeping. `ThrongletsManager` is even more decoupled — it watches the registry and emits its own events, which the renderer and overlay consume. You can delete the entire Thronglet system by removing three files and a four-line block in `main.js`. The base sim keeps running.
+Civilisations and Thronglet awareness aren't bolted into `Human.tick()` — they sit *outside* the entity loop and listen to events. `CivilizationManager` subscribes to `entity:born` for tribe assignment and `entity:died` for hut bookkeeping, plus runs an upgrade tick every 240 sim ticks that spends each tribe's stockpile to upgrade its lowest-tier hut. `ThrongletsManager` is even more decoupled — it watches the registry and emits its own events, which the renderer and overlay consume. You can delete the entire Thronglet system by removing three files and a four-line block in `main.js`. The base sim keeps running.
+
+### How the civilisation snowball works
+
+The base sim is a food chain. Civilisation is the layer on top that lets a tribe outgrow it. Three small mechanisms compound:
+
+- **Hut farms** — every hut stamps a 3-tile-radius disc of "cultivated" tiles into a `Uint16Array` on the world. Plants on cultivated tiles age 45% slower and spread 3.5× more often. So a tribe that puts down even two huts has a steady food belt around them.
+- **Hut shelter** — adult humans on a cultivated tile have their hunger growth halved (food storage). They spend more cycles seeking mates and gathering instead of seeking food.
+- **Resource gathering + tier upgrades** — every adult passively contributes wood (near forests) or stone (near mountains) to their tribe. Once a tribe has 30 wood, the civ tick upgrades one of its huts to a longhouse; 50 wood + 30 stone gets it to a grand compound. Each upgrade adds new structures (granary, watchtower, banner, fence) and bumps the hut's HP — so tribes that play long become measurably more durable.
+
+A tribe near forest *and* mountain can climb to T3; an isolated tribe in pure grassland stays at T1 forever. Terrain matters.
 
 ```mermaid
 sequenceDiagram
@@ -283,9 +299,11 @@ You don't need to touch the sim loop, the event bus, or the civ system. That's t
 
 ### What I'd do differently
 
-- **Workers**: the sim is single-threaded JS. At 2,500 entities you can feel it. Moving the tick loop into a Web Worker (with the registry serialised back to the main thread for rendering) would scale to ~10× more entities.
+- **Workers**: the sim is single-threaded JS. At 6,000 entities you can feel it. Moving the tick loop into a Web Worker (with the registry serialised back to the main thread for rendering) would scale to another ~10× headroom.
 - **Typed entity arrays**: `Map<id, Entity>` is convenient but cache-unfriendly. A struct-of-arrays layout (parallel `Float32Array`s for x/y/age/hunger) would be ~2–4× faster for the hot path. Premature for this project's scale, but it's where you'd go next.
-- **Save/load**: only Thronglet awareness persists. The full world state would be straightforward to serialise (it's all plain objects), but I haven't done it.
+- **Save/load**: only Thronglet awareness persists, plus the world *seed* drives terrain reproducibly. Full sim-state save/load (creatures, tribes, resources) would be straightforward to serialise (everything's plain objects) but isn't done yet.
+- **Job-driven movement**: roles currently bias gather rates but not pathing. Real "woodcutter walks to the nearest forest, fells trees, walks back" behaviour is the next iteration.
+- **Resource-pressure war**: tribes currently declare war from proximity + random rolls. Tying war pressure to resource scarcity (no nearby forest = wood pressure → war over a neighbour's woods, with destruction and rebuilding) is the natural next layer on top of the civ snowball.
 
 ## Running locally
 
