@@ -11,10 +11,11 @@ No installer, no account, no backend — just open the page and the world starts
 ## What you can do
 
 - **Watch a world unfold.** A procedurally-generated map of forests, mountains, lakes and beaches seeds itself with creatures and runs continuously.
-- **Shape the terrain.** Paint water, grass, forest, dirt, sand, or mountains with an adjustable brush.
-- **Spawn life.** Drop plants, herbivores, predators, or humans anywhere and watch them interact.
-- **Inspect anyone.** Click any creature, plant, or hut to see its name, tribe, life stage, hunger, energy, traits, skills, and current state of mind.
-- **Control time.** Pause, slow, or fast-forward up to 5×; reset the world for a new seed.
+- **Spawn life.** Press `1`–`4` and click on the canvas to drop plants, herbivores, predators, or humans anywhere and watch them interact.
+- **Shape the terrain.** Terrain painting (water, grass, forest, dirt, sand, mountain) is wired in the simulation layer; the HUD-only redesign (Apr 2026) removed the toolbar, so picking a paint tool currently lives behind keyboard shortcuts while the new HUD is being filled in.
+- **Control time.** Pause, slow, or fast-forward up to 5× from the top-right transport, or via `Space` and `[` `]`. The bottom-right die rolls a fresh world seed.
+
+> **HUD redesign in flight.** The page just adopted a new cinematic HUD from a Claude Design handoff. The toolbar, right sidebar (history graph / tribes / inspector / legend), and welcome/help modals were removed by the redesign; their JS still ships but no longer has anywhere to render. The new bottom-bar resources (energy / food / wood / stone / happiness) are placeholders for the upcoming resource model — they're not yet driven by sim data.
 
 ## Living systems
 
@@ -86,9 +87,7 @@ window.__thronglets.reset()          // wipe persistence and start fresh
 | `[` &nbsp; `]` | Slower / faster simulation |
 | `F` | Reset camera |
 | `R` | Generate a new world |
-| `H` &nbsp; `?` | Toggle controls panel |
 | `Ctrl+Shift+T` | Toggle Thronglet awareness on / off |
-| `Esc` | Close any open dialog |
 
 ## Visual systems
 
@@ -99,7 +98,7 @@ window.__thronglets.reset()          // wipe persistence and start fresh
 - **Water** — animated shader plane with foam along every coast. Highlights pick up the current sky colour, so dawn and dusk paint the sea.
 - **Bloom postprocessing** — Thronglet beacons, fireflies, and the sun disc get a soft glow via `UnrealBloomPass`; ordinary terrain stays sharp.
 - **Cinematic overlay** — Thronglet awareness moments display Netflix-style subtitles, a soft red vignette during Stage 4 stares, and an attribution badge so screenshots are self-explanatory.
-- **HUD chrome** — pixel-style "MINI WORLD" title (Press Start 2P) over a top-left status panel, a top-right transport + persistent timestamped event log, bottom-center species and awareness bars, and a bottom-right world seed display with a die-icon to roll a fresh world. Everything floats over the canvas, framed by a subtle red glow.
+- **HUD chrome** — pixel-style "MINI WORLD" title (Press Start 2P) over a top-left status panel (POPULATION / TRIBES / TIME / ENVIRONMENT / WATCHERS), a top-right transport row (pause / play / fast + current-speed display) sitting on a persistent event log, a bottom-left minimap with an eye glyph, bottom-center resource bars (ENERGY / FOOD / WOOD / STONE / HAPPINESS — wired for the upcoming resource model), and a bottom-right world seed with a die button to reseed. Everything floats over the canvas, framed by a subtle red glow. There is no toolbar or sidebar in the current layout — interactions are keyboard-driven for now.
 
 ## Tech stack
 
@@ -150,7 +149,9 @@ js/
 ├── entities/           ← Plant, Creature → Herbivore/Predator/Human, Building
 ├── sim/                ← SimulationManager, CivilizationManager, Thronglets
 ├── render/             ← Three.js layer (terrain, entities, sky, water, …)
-└── ui/                 ← toolbar, HUD, sidebar panels, modals, toaster
+└── ui/                 ← HUD, stats, minimap, toaster, moment overlay
+                          (toolbar/sidebar/modals modules ship but are
+                          orphaned by the Apr 2026 HUD redesign)
 ```
 
 No `package.json`, no build step, no bundler. Three.js is pulled straight from jsDelivr via an importmap:
@@ -293,7 +294,7 @@ Roughly the minimum to get a new creature into the world:
 2. **Make a class** in `js/entities/Fish.js` that extends `Creature` (copy `Herbivore.js` as a starting point and tweak `_decideState`).
 3. **Register it** in `EntityRegistry.spawn()` so `spawn(TYPE.FISH, x, y)` returns one.
 4. **Render it** by adding a part list to `EntityRenderer3D` (one InstancedMesh per body part, same instance-index trick).
-5. **(Optional)** add a toolbar button in [`index.html`](index.html) and wire it in `ToolManager`.
+5. **(Optional)** wire it in `ToolManager` so a keyboard shortcut spawns it. The new HUD doesn't have a visible toolbar yet — that's coming back in a different form.
 
 You don't need to touch the sim loop, the event bus, or the civ system. That's the payoff for keeping concerns layered.
 
