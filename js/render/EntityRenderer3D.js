@@ -187,25 +187,49 @@ function buildHutChimney() {
   return box(0.10, 0.24, 0.10, -0.18, 0.86, -0.18);
 }
 
-// Tier 2 — second-storey loft cube above the roof, with its own little cap.
-// Hidden (scale 0) for tier-1 huts.
+// ── Hut tier add-ons ─────────────────────────────────────────────────────
+// Each tier UPGRADE both adds new structures *and* makes the entire hut
+// scale up (handled at update-time via ent.tier). Visually:
+//   T1 — single house.
+//   T2 — longhouse with a side granary annex (footprint ≈ 2 tiles).
+//   T3 — small compound: longhouse + granary + watchtower + banner
+//        (footprint ≈ 3 tiles). Adds T2's parts plus T3-only ones.
+
+// Tier 2 — second-storey loft cube above the roof.
 function buildHutLoft() {
   const loft = box(0.46, 0.30, 0.46, 0, 1.05, 0);
   const cap  = box(0.22, 0.10, 0.22, 0, 1.30, 0);
   return merge([loft, cap]);
 }
 
-// Tier 3 — corner watchtower spire + a banner flying from its top.
-// Hidden for tier ≤ 2.
+// Tier 2 — granary annex offset to the side: gives the hut a clear
+// multi-tile footprint as soon as it upgrades.
+function buildHutGranary() {
+  const base = box(0.42, 0.28, 0.42,  0.78, 0.14,  0.0);
+  const top  = box(0.34, 0.16, 0.34,  0.78, 0.36,  0.0);
+  const cap  = box(0.18, 0.08, 0.18,  0.78, 0.50,  0.0);
+  return merge([base, top, cap]);
+}
+
+// Tier 3 — corner watchtower spire on the back-left of the compound.
 function buildHutTower() {
-  const shaft = box(0.18, 0.80, 0.18, 0.30, 0.80, 0.30);
-  const top   = box(0.24, 0.10, 0.24, 0.30, 1.27, 0.30);
+  const shaft = box(0.20, 0.92, 0.20, -0.34, 0.92, -0.34);
+  const top   = box(0.28, 0.12, 0.28, -0.34, 1.46, -0.34);
   return merge([shaft, top]);
 }
+
+// Tier 3 — tribe-coloured banner flying from the watchtower.
 function buildHutBanner() {
-  // Small triangular-feeling banner — represented as a thin slab off the
-  // tower. Coloured by tribe.
-  return box(0.28, 0.18, 0.03, 0.46, 1.18, 0.30);
+  return box(0.32, 0.20, 0.03, -0.16, 1.34, -0.34);
+}
+
+// Tier 3 — a low fence/wall hint along the front of the compound, so the
+// outline reads as an enclosed plot from the air.
+function buildHutFence() {
+  const a = box(0.78, 0.10, 0.06, 0.0, 0.05,  0.55);
+  const b = box(0.06, 0.10, 0.36, 0.40, 0.05, 0.40);
+  const c = box(0.06, 0.10, 0.36,-0.40, 0.05, 0.40);
+  return merge([a, b, c]);
 }
 
 // ── Color helpers ─────────────────────────────────────────────────────────
@@ -247,14 +271,27 @@ const HAIR_COLORS = [
 
 const HAIR_GREY = new THREE.Color('#cfd2d6');
 
+// Role-coloured hats — adults wear a coloured cap that signals their job
+// at a glance. Children and elders show natural hair colour instead.
+const ROLE_HAT_COLORS = {
+  woodcutter: new THREE.Color('#5a3a1c'),  // worn brown leather
+  quarrier:   new THREE.Color('#7a8290'),  // slate-grey hard cap
+  farmer:     new THREE.Color('#c2a44a'),  // straw / wheat
+  hunter:     new THREE.Color('#3a5230'),  // forest green hood
+  builder:    new THREE.Color('#b87432'),  // rust-orange work cap
+};
+
 function hairFor(ent) {
   const base = HAIR_COLORS[Math.abs(ent.id) % HAIR_COLORS.length];
-  // Elders grey out their hair as they age into the elder window. We blend
-  // toward HAIR_GREY based on how deep into elderhood they are. Adults and
-  // children get their natural colour unchanged.
   const r = (typeof ent.ageRatio === 'number') ? ent.ageRatio : -1;
+  // Adults wear their role hat (if any). Children and elders show natural hair.
+  if (ent.role && r >= 0.18 && r < 0.78) {
+    const hat = ROLE_HAT_COLORS[ent.role];
+    if (hat) return hat;
+  }
+  // Elders grey out their hair as they age into the elder window.
   if (r >= 0.78) {
-    const t = Math.min(1, (r - 0.78) / 0.20);  // 0 → 1 across the elder phase
+    const t = Math.min(1, (r - 0.78) / 0.20);
     const out = new THREE.Color().copy(base).lerp(HAIR_GREY, t * 0.85);
     return out;
   }
@@ -352,11 +389,13 @@ export class EntityRenderer3D {
       makeMesh(buildHutRoof(),       'roof'),
       makeMesh(buildHutDoor(),       'hut-door'),
       makeMesh(buildHutChimney(),    'hut-chimney'),
-      // Tier 2 add-on — second-storey loft. Hidden when ent.tier < 2.
+      // Tier 2 add-ons — second-storey loft + granary annex on the side.
       makeMesh(buildHutLoft(),       'wall',        { minTier: 2 }),
-      // Tier 3 add-ons — corner watchtower + tribe-coloured banner.
+      makeMesh(buildHutGranary(),    'wall',        { minTier: 2 }),
+      // Tier 3 add-ons — watchtower, banner, and a fence outlining the plot.
       makeMesh(buildHutTower(),      'wall',        { minTier: 3 }),
       makeMesh(buildHutBanner(),     'tribe',       { minTier: 3 }),
+      makeMesh(buildHutFence(),      'hut-found',   { minTier: 3 }),
     ];
 
     // Trait marker
@@ -474,6 +513,12 @@ export class EntityRenderer3D {
           s *= 0.55 + 0.45 * k;
         }
       }
+      // Hut tiers scale the whole structure up so a T3 compound visibly
+      // dwarfs a T1 starter hut at any zoom level.
+      if (ent.type === TYPE.BUILDING && ent.tier) {
+        if (ent.tier === 2) s *= 1.15;
+        else if (ent.tier === 3) s *= 1.32;
+      }
       // Spawn fade-in: ramp from 0 → full size over FADE_IN_MS so newborns
       // grow out of nothing instead of popping at full scale.
       if (ent.bornAt) {
@@ -571,7 +616,12 @@ export class EntityRenderer3D {
       const k = since / FADE_OUT_MS;
       const ease = 1 - (1 - k) * (1 - k); // ease-out
       const elev = tileRenderer3d.getElevationAt(Math.floor(g.x), Math.floor(g.z));
-      const scale = (g.scale ?? 1) * (1 - ease);
+      let baseScale = g.scale ?? 1;
+      if (g.type === TYPE.BUILDING && g.tier) {
+        if (g.tier === 2) baseScale *= 1.15;
+        else if (g.tier === 3) baseScale *= 1.32;
+      }
+      const scale = baseScale * (1 - ease);
       this._dummy.position.set(g.x, elev + ease * 0.15, g.z);
       this._dummy.rotation.set(ease * 0.3, -(g.heading ?? 0), 0);
       this._dummy.scale.set(scale, scale, scale);

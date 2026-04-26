@@ -30,6 +30,32 @@ export const HUT_TIER_COSTS = Object.freeze({
 });
 export const UPGRADE_INTERVAL_TICKS  = 240;    // ~20 s — one upgrade attempt per tribe per interval
 
+// Adult human roles — every adult has a job, which biases their gather rates,
+// build chance, and (later) movement. Children and elders have no role.
+export const ROLE = Object.freeze({
+  WOODCUTTER: 'woodcutter',
+  QUARRIER:   'quarrier',
+  FARMER:     'farmer',
+  HUNTER:     'hunter',
+  BUILDER:    'builder',
+});
+
+// Probability weights for role assignment at birth — sum to 1.
+// Tweak to taste: more woodcutters than anything else because wood is the
+// gating resource for both T1 huts and T2/T3 upgrades.
+export const ROLE_WEIGHTS = Object.freeze({
+  [ROLE.WOODCUTTER]: 0.32,
+  [ROLE.QUARRIER]:   0.18,
+  [ROLE.FARMER]:     0.20,
+  [ROLE.HUNTER]:     0.15,
+  [ROLE.BUILDER]:    0.15,
+});
+
+// Role multipliers — applied on top of base gather/build rates.
+export const ROLE_WOOD_MULT  = 3.5;   // woodcutters at forests
+export const ROLE_STONE_MULT = 3.5;   // quarriers at mountains
+export const ROLE_BUILD_COOLDOWN_MULT = 0.5;  // builders build twice as often
+
 // Chance a newborn creature is "special" with a unique trait
 export const SPECIAL_CHANCE = 0.05;
 

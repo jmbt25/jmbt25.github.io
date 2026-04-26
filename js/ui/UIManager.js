@@ -334,6 +334,11 @@ export class UIManager {
     if (entity.lifeStage !== undefined) {
       rows.push(['Life stage', this._cap(entity.lifeStage)]);
     }
+    // Adult role — only meaningful on adults; children/elders won't act on it.
+    if (entity.role) {
+      const tag = entity.lifeStage === 'adult' ? '' : ' (inactive)';
+      rows.push(['Role', `${this._cap(entity.role)}${tag}`]);
+    }
     // Hut tier (1 = basic, 2 = longhouse, 3 = grand)
     if (entity.tier !== undefined) {
       const tierName = ['', 'Basic hut', 'Longhouse', 'Grand hall'][entity.tier] ?? `Tier ${entity.tier}`;

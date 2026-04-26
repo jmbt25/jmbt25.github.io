@@ -3,6 +3,7 @@ import {
   TYPE, SKILL_BASE_CHANCE, SKILL_INHERIT_CHANCE, SKILL_INHERIT_SAME_CHANCE,
   HUT_HUNGER_RELIEF, MULTI_BIRTH_TWIN_CHANCE, MULTI_BIRTH_TRIPLET_CHANCE,
   GATHER_WOOD_CHANCE, GATHER_STONE_CHANCE,
+  ROLE, ROLE_WEIGHTS, ROLE_WOOD_MULT, ROLE_STONE_MULT, ROLE_BUILD_COOLDOWN_MULT,
 } from '../core/constants.js';
 import { TERRAIN } from '../world/TerrainType.js';
 import { rand, randInt } from '../core/rng.js';
@@ -54,6 +55,14 @@ export class Human extends Creature {
     // Name: gender-aware first name pick. No name carries any mechanical
     // weight — "Joshua" is just one of the male names.
     this.name = pickName(this.sex);
+
+    // Role: every human is assigned a job at birth. It only takes effect
+    // once they're an adult, but assigning at birth keeps the dynamic
+    // simple. Builder skill compounds with the build-cooldown reduction.
+    this.role = pickRole();
+    if (this.role === ROLE.BUILDER) {
+      this.buildCooldown = Math.floor(this.buildCooldown * ROLE_BUILD_COOLDOWN_MULT);
+    }
 
     // Skill: independent of name. A skilled parent has a much higher chance
     // of producing a skilled child (forms lineages), and that child usually
@@ -122,8 +131,10 @@ export class Human extends Creature {
         if (nearForest && nearMountain) break;
       }
     }
-    if (nearForest   && rand() < GATHER_WOOD_CHANCE)  tribe.addWood(1);
-    if (nearMountain && rand() < GATHER_STONE_CHANCE) tribe.addStone(1);
+    const woodRate  = GATHER_WOOD_CHANCE  * (this.role === ROLE.WOODCUTTER ? ROLE_WOOD_MULT  : 1);
+    const stoneRate = GATHER_STONE_CHANCE * (this.role === ROLE.QUARRIER   ? ROLE_STONE_MULT : 1);
+    if (nearForest   && rand() < woodRate)  tribe.addWood(1);
+    if (nearMountain && rand() < stoneRate) tribe.addStone(1);
   }
 
   /** Adults near a hut benefit from stored food: hunger grows much slower.
@@ -368,4 +379,14 @@ export class Human extends Creature {
       this._stepToward(world, tx, ty);
     }
   }
+}
+
+/** Roll a role for a newborn human, weighted by ROLE_WEIGHTS. */
+function pickRole() {
+  let roll = rand();
+  for (const [role, weight] of Object.entries(ROLE_WEIGHTS)) {
+    roll -= weight;
+    if (roll <= 0) return role;
+  }
+  return ROLE.WOODCUTTER;
 }
