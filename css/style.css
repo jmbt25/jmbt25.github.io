@@ -1196,6 +1196,15 @@ html, body {
   color: #ff8c5a;
   font-weight: 600;
 }
+.tribe-res {
+  grid-column: 2 / span 2;
+  margin-top: 2px;
+  margin-left: 0;
+  font-size: 9.5px;
+  color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.04em;
+}
 .tribes-empty {
   color: var(--text-faint);
   font-size: 11px;

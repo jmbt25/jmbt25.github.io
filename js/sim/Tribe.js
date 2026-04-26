@@ -15,6 +15,19 @@ export class Tribe {
     this.enemies = new Set();    // tribe IDs at war with this tribe
     // Cached centroid of huts/members for spatial queries — recomputed periodically
     this.centroid = { x: founderX, y: founderY };
+    // Resources accumulated by members wandering near forest / mountain tiles.
+    // Spent by CivilizationManager to upgrade huts to higher tiers.
+    this.resources = { wood: 0, stone: 0 };
+  }
+
+  addWood(n)  { this.resources.wood  += n; }
+  addStone(n) { this.resources.stone += n; }
+  canAfford(wood, stone) {
+    return this.resources.wood >= wood && this.resources.stone >= stone;
+  }
+  spend(wood, stone) {
+    this.resources.wood  -= wood;
+    this.resources.stone -= stone;
   }
 
   isAtWarWith(tribeId) {

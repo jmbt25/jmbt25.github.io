@@ -334,11 +334,19 @@ export class UIManager {
     if (entity.lifeStage !== undefined) {
       rows.push(['Life stage', this._cap(entity.lifeStage)]);
     }
+    // Hut tier (1 = basic, 2 = longhouse, 3 = grand)
+    if (entity.tier !== undefined) {
+      const tierName = ['', 'Basic hut', 'Longhouse', 'Grand hall'][entity.tier] ?? `Tier ${entity.tier}`;
+      rows.push(['Hut tier', `${tierName} (T${entity.tier})`]);
+    }
     if (entity.tribeId != null && this.civ) {
       const t = this.civ.getTribe(entity.tribeId);
       if (t) {
         rows.push(['Members', t.members.size]);
         rows.push(['Huts',    t.huts.size]);
+        if (t.resources) {
+          rows.push(['Stockpile', `🌲 ${t.resources.wood} · ⛰ ${t.resources.stone}`]);
+        }
         const enemies = [...t.enemies].map(id => this.civ.getTribe(id)?.name).filter(Boolean);
         if (enemies.length) rows.push(['At war with', enemies.join(', ')]);
       }

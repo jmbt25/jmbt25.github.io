@@ -52,6 +52,11 @@ export class TribesPanel {
       const fallenTag = fallen
         ? `<span class="tribe-fallen" title="No surviving members — only ruins remain">fallen</span>`
         : '';
+      const wood  = t.resources?.wood  ?? 0;
+      const stone = t.resources?.stone ?? 0;
+      const resHTML = (wood > 0 || stone > 0)
+        ? `<div class="tribe-res" title="Stockpile">🌲 ${wood} · ⛰ ${stone}</div>`
+        : '';
       return `
         <div class="tribe-row${fallen ? ' tribe-row-fallen' : ''}">
           <div class="tribe-dot" style="background:${t.color}; color:${t.color}"></div>
@@ -61,6 +66,7 @@ export class TribesPanel {
             <span class="sep">·</span>
             <span title="Huts">${t.huts.size}🏠</span>
           </span>
+          ${resHTML}
           ${warHTML}
         </div>`;
     }).join('');

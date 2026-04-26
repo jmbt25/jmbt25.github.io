@@ -38,6 +38,15 @@ export class Toaster {
       this._onBorn(entity, parent);
     });
 
+    // Tribe upgraded a hut to a higher tier — surface it as a story event
+    eventBus.on('tribe:upgrade', ({ tribe, tier }) => {
+      const label = ['', '', 'longhouse', 'grand hall'][tier] ?? `tier ${tier}`;
+      this.show(
+        `<b style="color:${tribe.color}">${tribe.name}</b> raised a <em>${label}</em>`,
+        { kind: 'tribe', icon: tier === 3 ? '🏛' : '🏠', key: `upgrade-${tribe.id}-${tier}` },
+      );
+    });
+
     // Track tribe roster changes by polling on each tick (cheap — civ.tribes is small)
     eventBus.on('sim:tick', () => this._scanCiv());
   }

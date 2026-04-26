@@ -187,6 +187,27 @@ function buildHutChimney() {
   return box(0.10, 0.24, 0.10, -0.18, 0.86, -0.18);
 }
 
+// Tier 2 — second-storey loft cube above the roof, with its own little cap.
+// Hidden (scale 0) for tier-1 huts.
+function buildHutLoft() {
+  const loft = box(0.46, 0.30, 0.46, 0, 1.05, 0);
+  const cap  = box(0.22, 0.10, 0.22, 0, 1.30, 0);
+  return merge([loft, cap]);
+}
+
+// Tier 3 — corner watchtower spire + a banner flying from its top.
+// Hidden for tier ≤ 2.
+function buildHutTower() {
+  const shaft = box(0.18, 0.80, 0.18, 0.30, 0.80, 0.30);
+  const top   = box(0.24, 0.10, 0.24, 0.30, 1.27, 0.30);
+  return merge([shaft, top]);
+}
+function buildHutBanner() {
+  // Small triangular-feeling banner — represented as a thin slab off the
+  // tower. Coloured by tribe.
+  return box(0.28, 0.18, 0.03, 0.46, 1.18, 0.30);
+}
+
 // ── Color helpers ─────────────────────────────────────────────────────────
 
 const PLANT_COLOR     = new THREE.Color('#4ea83a');
@@ -266,6 +287,7 @@ export class EntityRenderer3D {
         tribeId:     ent.tribeId,
         trait:       ent.trait,
         skill:       ent.skill,
+        tier:        ent.tier,        // huts: keep their final tier through the death fade
         frenzyTimer: ent.frenzyTimer ?? 0,
         gestating:   ent.gestating ?? false,
         hunger:      ent.hunger,
@@ -295,8 +317,11 @@ export class EntityRenderer3D {
       mesh.instanceColor = new THREE.InstancedBufferAttribute(
         new Float32Array(MAX_ENTITIES * 3), 3
       );
-      return { mesh, colorRole };
+      return { mesh, colorRole, minTier: opts.minTier ?? 0 };
     };
+
+    // A scale-zero matrix used to hide tier-locked hut parts on tier-1 huts.
+    this._hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
 
     this.partGroups[TYPE.PLANT] = [
       makeMesh(buildPlantTrunk(),   'plantTrunk'),
@@ -322,11 +347,16 @@ export class EntityRenderer3D {
       makeMesh(buildHumanPupils(),  'pupil',  { castShadow: false }),
     ];
     this.partGroups[TYPE.BUILDING] = [
-      makeMesh(buildHutFoundation(), 'hut-found',  { receiveShadow: true }),
-      makeMesh(buildHutWalls(),      'wall',       { receiveShadow: true }),
+      makeMesh(buildHutFoundation(), 'hut-found',   { receiveShadow: true }),
+      makeMesh(buildHutWalls(),      'wall',        { receiveShadow: true }),
       makeMesh(buildHutRoof(),       'roof'),
       makeMesh(buildHutDoor(),       'hut-door'),
       makeMesh(buildHutChimney(),    'hut-chimney'),
+      // Tier 2 add-on — second-storey loft. Hidden when ent.tier < 2.
+      makeMesh(buildHutLoft(),       'wall',        { minTier: 2 }),
+      // Tier 3 add-ons — corner watchtower + tribe-coloured banner.
+      makeMesh(buildHutTower(),      'wall',        { minTier: 3 }),
+      makeMesh(buildHutBanner(),     'tribe',       { minTier: 3 }),
     ];
 
     // Trait marker
@@ -482,8 +512,16 @@ export class EntityRenderer3D {
       this._dummy.scale.set(s, s, s);
       this._dummy.updateMatrix();
 
+      const entTier = ent.tier ?? 1;
       for (const part of parts) {
-        part.mesh.setMatrixAt(idx, this._dummy.matrix);
+        // Tier-locked hut parts are written with a zero-scale matrix when
+        // the building hasn't reached the required tier yet — keeps the
+        // instance buffer dense without per-frame cost.
+        if (part.minTier && entTier < part.minTier) {
+          part.mesh.setMatrixAt(idx, this._hiddenMatrix);
+        } else {
+          part.mesh.setMatrixAt(idx, this._dummy.matrix);
+        }
         const c = this._colorForPart(ent, part.colorRole);
         part.mesh.setColorAt(idx, c);
       }
@@ -538,8 +576,13 @@ export class EntityRenderer3D {
       this._dummy.rotation.set(ease * 0.3, -(g.heading ?? 0), 0);
       this._dummy.scale.set(scale, scale, scale);
       this._dummy.updateMatrix();
+      const ghostTier = g.tier ?? 1;
       for (const part of parts) {
-        part.mesh.setMatrixAt(idx, this._dummy.matrix);
+        if (part.minTier && ghostTier < part.minTier) {
+          part.mesh.setMatrixAt(idx, this._hiddenMatrix);
+        } else {
+          part.mesh.setMatrixAt(idx, this._dummy.matrix);
+        }
         const c = this._colorForPart(g, part.colorRole);
         // Bleach toward grey as the ghost fades
         c.lerp(this._tmp.setRGB(0.5, 0.5, 0.55), ease * 0.6);
@@ -595,8 +638,22 @@ export class EntityRenderer3D {
         if (ent.type === TYPE.PREDATOR)  this._jitter(c, ent.id, 0.03, 0.10, 0.10);
         if (ent.type === TYPE.HUMAN)     this._jitter(c, ent.id, 0.03, 0.08, 0.06);
         break;
-      case 'wall': c.copy(HUT_WALL); break;
+      case 'wall':
+        c.copy(HUT_WALL);
+        // Higher tiers tint walls slightly cooler (mortared stone) so the
+        // upgrade reads at a glance.
+        if ((ent.tier ?? 1) >= 2) c.lerp(HUT_FOUND, 0.30);
+        if ((ent.tier ?? 1) >= 3) c.lerp(HUT_FOUND, 0.20);
+        break;
       case 'roof':
+        if (this.civ && ent.tribeId != null) {
+          const t = this.civ.getTribe(ent.tribeId);
+          if (t) { c.set(t.color); break; }
+        }
+        c.copy(HUT_FOUND);
+        break;
+      case 'tribe':
+        // Banner — pure tribe colour so upgraded tribes' flags are unmistakable
         if (this.civ && ent.tribeId != null) {
           const t = this.civ.getTribe(ent.tribeId);
           if (t) { c.set(t.color); break; }

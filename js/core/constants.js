@@ -19,6 +19,17 @@ export const HUT_HUNGER_RELIEF  = 0.55;  // multiplier on adult hunger growth
 export const MULTI_BIRTH_TWIN_CHANCE    = 0.22;
 export const MULTI_BIRTH_TRIPLET_CHANCE = 0.05;
 
+// Resource gathering — tribes accumulate wood / stone passively as their
+// adult members move near forests and mountains. The civ manager spends
+// these to upgrade huts to higher tiers.
+export const GATHER_WOOD_CHANCE      = 0.014;  // per tick when an adult is adjacent to FOREST
+export const GATHER_STONE_CHANCE     = 0.009;  // per tick when an adult is adjacent to MOUNTAIN
+export const HUT_TIER_COSTS = Object.freeze({
+  2: { wood: 30, stone:  0 },
+  3: { wood: 50, stone: 30 },
+});
+export const UPGRADE_INTERVAL_TICKS  = 240;    // ~20 s — one upgrade attempt per tribe per interval
+
 // Chance a newborn creature is "special" with a unique trait
 export const SPECIAL_CHANCE = 0.05;
 

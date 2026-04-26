@@ -2,7 +2,9 @@ import { Creature, STATE } from './Creature.js';
 import {
   TYPE, SKILL_BASE_CHANCE, SKILL_INHERIT_CHANCE, SKILL_INHERIT_SAME_CHANCE,
   HUT_HUNGER_RELIEF, MULTI_BIRTH_TWIN_CHANCE, MULTI_BIRTH_TRIPLET_CHANCE,
+  GATHER_WOOD_CHANCE, GATHER_STONE_CHANCE,
 } from '../core/constants.js';
+import { TERRAIN } from '../world/TerrainType.js';
 import { rand, randInt } from '../core/rng.js';
 import { pickName } from './names.js';
 import { rollSkill, getSkillById } from './skills.js';
@@ -94,7 +96,34 @@ export class Human extends Creature {
     if (this.ascendant) {
       this.strength = (this.baseStrength ?? 1) + Math.min(4, this.age / 100);
     }
-    return super.tick(world, registry);
+    const out = super.tick(world, registry);
+    // After moving + acting, contribute resources to the tribe if standing
+    // near a forest (wood) or a mountain (stone). Calm states only — fleeing
+    // and warring humans don't gather.
+    this._passiveGather(world);
+    return out;
+  }
+
+  /** Adults near forest tiles slowly bring wood home; near mountain tiles, stone. */
+  _passiveGather(world) {
+    if (!this.isAdult || !this.civ || this.tribeId == null) return;
+    if (this._thronglet) return;
+    if (this.state === STATE.FLEE || this.state === STATE.WAR) return;
+    const tribe = this.civ.getTribe(this.tribeId);
+    if (!tribe) return;
+
+    let nearForest = false, nearMountain = false;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (!world.inBounds(this.tileX + dx, this.tileY + dy)) continue;
+        const t = world.getTerrain(this.tileX + dx, this.tileY + dy);
+        if (t === TERRAIN.FOREST)   nearForest   = true;
+        if (t === TERRAIN.MOUNTAIN) nearMountain = true;
+        if (nearForest && nearMountain) break;
+      }
+    }
+    if (nearForest   && rand() < GATHER_WOOD_CHANCE)  tribe.addWood(1);
+    if (nearMountain && rand() < GATHER_STONE_CHANCE) tribe.addStone(1);
   }
 
   /** Adults near a hut benefit from stored food: hunger grows much slower.

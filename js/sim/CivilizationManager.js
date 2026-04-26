@@ -1,6 +1,7 @@
 import { Tribe, resetTribeCounter } from './Tribe.js';
-import { TYPE } from '../core/constants.js';
+import { TYPE, HUT_TIER_COSTS, UPGRADE_INTERVAL_TICKS } from '../core/constants.js';
 import { rand, randChoice } from '../core/rng.js';
+import { eventBus } from '../core/eventBus.js';
 
 const TRIBE_NAMES = [
   'Aurelians','Brynne','Calderra','Drovaks','Eladrin','Fjorda',
@@ -198,6 +199,39 @@ export class CivilizationManager {
 
     if (tick % 60 === 0 && this.tribes.size >= 2) {
       this._diplomacyTick();
+    }
+
+    if (tick % UPGRADE_INTERVAL_TICKS === 0) {
+      this._upgradeTick();
+    }
+  }
+
+  /**
+   * Each interval, every tribe checks if it can afford to upgrade one of
+   * its huts. Upgrades the LOWEST-tier alive hut (so a tribe with mixed
+   * stock evens up before pushing a single building to T3). One upgrade
+   * per tribe per interval — keeps construction rhythm visible.
+   */
+  _upgradeTick() {
+    for (const tribe of this.tribes.values()) {
+      if (tribe.huts.size === 0) continue;
+      // Find the lowest-tier alive hut owned by this tribe
+      let target = null;
+      let targetTier = 4;
+      for (const id of tribe.huts) {
+        const e = this.registry.get(id);
+        if (!e?.alive) continue;
+        if (e.tier < targetTier) { target = e; targetTier = e.tier; }
+      }
+      if (!target || target.tier >= 3) continue;
+
+      const cost = HUT_TIER_COSTS[target.tier + 1];
+      if (!cost) continue;
+      if (!tribe.canAfford(cost.wood, cost.stone)) continue;
+
+      tribe.spend(cost.wood, cost.stone);
+      target.upgradeTier();
+      eventBus.emit('tribe:upgrade', { tribe, building: target, tier: target.tier });
     }
   }
 
