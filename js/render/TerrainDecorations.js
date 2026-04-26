@@ -64,12 +64,15 @@ function merge(geoms) {
 // ── Decoration prototypes ────────────────────────────────────────────────
 
 function buildPineTree() {
-  // Trunk + 3 stacked cones — small forest pine (~0.7 units tall)
-  const trunk = cyl(0.04, 0.06, 0.18, 0, 0, 0, 5);
-  const c1 = cone(0.20, 0.32, 0, 0.10, 0, 5);
-  const c2 = cone(0.15, 0.26, 0, 0.30, 0, 5);
-  const c3 = cone(0.10, 0.20, 0, 0.50, 0, 5);
-  return merge([trunk, c1, c2, c3]);
+  // Larger, chunkier conifer (~1.1 units tall) — matches the diorama
+  // reference where forests read as bold, sculptural masses rather than
+  // a fine carpet of needles.
+  const trunk = cyl(0.07, 0.10, 0.26, 0, 0, 0, 5);
+  const c1 = cone(0.34, 0.46, 0, 0.16, 0, 6);
+  const c2 = cone(0.26, 0.40, 0, 0.46, 0, 6);
+  const c3 = cone(0.18, 0.32, 0, 0.74, 0, 6);
+  const c4 = cone(0.10, 0.22, 0, 0.96, 0, 6);
+  return merge([trunk, c1, c2, c3, c4]);
 }
 function buildBroadleafTree() {
   // Trunk + canopy cluster
@@ -132,7 +135,7 @@ function buildReed() {
 // ── Type registry ────────────────────────────────────────────────────────
 
 const TYPES = {
-  pine:      { build: buildPineTree,      capacity: 4500, color: '#2a5b25', shadow: true,  lateralRadius: 0.40 },
+  pine:      { build: buildPineTree,      capacity: 8000, color: '#2a5b25', shadow: true,  lateralRadius: 0.40 },
   broadleaf: { build: buildBroadleafTree, capacity: 2400, color: '#3e7a3a', shadow: true,  lateralRadius: 0.42 },
   bush:      { build: buildBush,          capacity: 1800, color: '#4a7a3c', shadow: true,  lateralRadius: 0.32 },
   grass:     { build: buildGrassTuft,     capacity:12000, color: '#6db15a', shadow: false, lateralRadius: 0.45 },
@@ -163,8 +166,8 @@ function planForTerrain(t) {
       { type: 'bush',      count: 0, chance: 0.06, max: 1 },
     ];
     case TERRAIN.FOREST:   return [
-      { type: 'pine',      count: 0, chance: 0.78, max: 2 },
-      { type: 'broadleaf', count: 0, chance: 0.45, max: 1 },
+      { type: 'pine',      count: 1, chance: 0.92, max: 3 },
+      { type: 'broadleaf', count: 0, chance: 0.40, max: 1 },
       { type: 'bush',      count: 0, chance: 0.30, max: 1 },
       { type: 'grass',     count: 1 },
     ];

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../core/constants.js';
 
-const DEFAULT_DIST = 70;
+const DEFAULT_DIST = 56;
 
 export class Camera3D {
   constructor(canvas, canvasW, canvasH) {
@@ -10,7 +10,7 @@ export class Camera3D {
 
     const cx = WORLD_WIDTH / 2;
     const cz = WORLD_HEIGHT / 2;
-    this._defaultPos    = new THREE.Vector3(cx, DEFAULT_DIST, cz + WORLD_HEIGHT * 0.85);
+    this._defaultPos    = new THREE.Vector3(cx, DEFAULT_DIST, cz + WORLD_HEIGHT * 0.65);
     this._defaultTarget = new THREE.Vector3(cx, 0, cz);
 
     this.camera.position.copy(this._defaultPos);

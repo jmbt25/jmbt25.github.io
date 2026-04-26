@@ -32,10 +32,10 @@ const STOPS = [
   { p: 0.50, top: '#4a8ad8', bot: '#cee2f0', sun: '#fff4dc', sunI: 1.50, amb: '#bccae0', ambI: 0.70, fog: '#a8c0d8', moonI: 0.00 },
   // Afternoon
   { p: 0.65, top: '#6a92c8', bot: '#e8d6b8', sun: '#ffdca8', sunI: 1.30, amb: '#b0a890', ambI: 0.60, fog: '#a89c80', moonI: 0.00 },
-  // Sunset
-  { p: 0.75, top: '#3a3a6e', bot: '#e88450', sun: '#ff7848', sunI: 1.00, amb: '#866a78', ambI: 0.50, fog: '#5c3a3e', moonI: 0.15 },
-  // Dusk
-  { p: 0.82, top: '#1a1f3a', bot: '#4a3260', sun: '#5a3060', sunI: 0.20, amb: '#5e5882', ambI: 0.50, fog: '#241834', moonI: 0.45 },
+  // Sunset — deeper, more saturated rim of fire on the horizon
+  { p: 0.75, top: '#2a2660', bot: '#ff7038', sun: '#ff5a28', sunI: 1.20, amb: '#9a5a52', ambI: 0.60, fog: '#5a2628', moonI: 0.15 },
+  // Dusk — magenta+amber band giving way to deep indigo above
+  { p: 0.82, top: '#15183a', bot: '#7a3a78', sun: '#c64c70', sunI: 0.55, amb: '#7a5288', ambI: 0.55, fog: '#2a1638', moonI: 0.45 },
   // Night
   { p: 1.00, top: '#0a142a', bot: '#15203c', sun: '#3a4060', sunI: 0.05, amb: '#5a72a0', ambI: 0.55, fog: '#0c1426', moonI: 0.75 },
 ];

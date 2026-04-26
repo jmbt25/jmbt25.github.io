@@ -48,7 +48,16 @@ const thronglets = new ThrongletsManager({
 });
 window.__thronglets = thronglets;
 
-const ui = new UIManager({ canvas, world, registry, renderer, sim, civ, thronglets, initialSeed });
+let ui;
+try {
+  ui = new UIManager({ canvas, world, registry, renderer, sim, civ, thronglets, initialSeed });
+} catch (e) {
+  console.error('[main] UIManager failed:', e);
+  throw e;
+}
+
+// Expose for in-page Tweaks panel + debugging.
+window.__game = { renderer, world, registry, sim, civ, thronglets, ui };
 
 let simInterval = setInterval(() => sim.update(), SIM_TICK_MS);
 
