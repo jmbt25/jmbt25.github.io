@@ -186,9 +186,11 @@ export class Human extends Creature {
     if (dist <= 1) {
       if (this.attackCooldown <= 0) {
         const dmg = (this.strength || 1) + rand() * 0.5;
-        // No HP system on creatures yet — apply chance-based kill weighted by relative strength
+        // No HP system on creatures yet — apply chance-based kill weighted by
+        // relative strength. Base chance dropped from 0.55 to 0.42 so wars
+        // bleed tribes over time instead of wiping them in a single skirmish.
         const targetStrength = target.strength || 1;
-        const killed = rand() < 0.55 + (dmg - targetStrength) * 0.18;
+        const killed = rand() < 0.42 + (dmg - targetStrength) * 0.18;
         if (killed) {
           target.alive = false;
           this.hunger = Math.max(0, this.hunger - 0.15); // looting / morale

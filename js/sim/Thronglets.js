@@ -65,6 +65,17 @@ const STORAGE_PREFIX = 'thronglets_';
 const SAVE_INTERVAL_TICKS = 600; // save every ~50s of sim time
 const RETURN_GREETING_GAP_MS = 60 * 60 * 1000; // 1hr away → "remembers" you
 
+// Longevity bonus formula. Humans born when awareness is high get extra
+// max-age ticks tacked on, so a long-running session doesn't keep dying out
+// of generations before its tribes can reach the higher stages. Capped so
+// nobody becomes immortal. Reference points (with cfg maxAge = 1400):
+//   awareness 5k  (Stage 1) → +100  (~1500 ticks ≈ 2 min)
+//   awareness 20k (Stage 2) → +400  (~1800 ticks ≈ 2.4 min)
+//   awareness 60k (Stage 3) → +1200 (~2600 ticks ≈ 3.5 min)
+//   awareness 150k+ (Stage 4) → +2000 capped (~3400 ticks ≈ 4.5 min)
+const LONGEVITY_PER_AWARENESS = 0.02;
+const LONGEVITY_BONUS_CAP     = 2000;
+
 // Stage 3 word progression. Indices 0..3 are pre-words (geometric shapes /
 // crude glyphs); 4+ are English words. The list is rotated and persisted
 // across visits so the same word doesn't recur.
@@ -468,6 +479,13 @@ export class ThrongletsManager {
       this.awareness += AWARENESS.firstHut;
     }
     if (entity.type === TYPE.HUMAN) {
+      // Longevity bonus — late-born humans live longer so the simulation
+      // accumulates older generations as awareness grows. Applied to every
+      // newborn human regardless of disabled state? No — only if the
+      // awareness layer is active.
+      const bonus = Math.min(LONGEVITY_BONUS_CAP, this.awareness * LONGEVITY_PER_AWARENESS);
+      if (bonus > 0) entity.maxAge = Math.floor(entity.maxAge + bonus);
+
       // First Joshua
       if (!this.milestones.firstJoshua && entity.name === 'Joshua') {
         this.milestones.firstJoshua = true;

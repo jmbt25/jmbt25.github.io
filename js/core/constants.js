@@ -57,11 +57,18 @@ export const SPECIES = Object.freeze({
     color:                 '#d04040',
   },
   [TYPE.HUMAN]: {
-    maxAge:                700,
+    // Baseline lifespan ~1400 ticks (~110s wall-time) — doubled from 700.
+    // Thronglets adds an awareness-scaled longevity bonus on top so humans
+    // born late in a session live long enough to actually reach Stage 3-4.
+    maxAge:                1400,
     moveEveryNTicks:       6,
-    hungerPerTick:         0.0026,
-    hungerThreshold:       0.60,
-    fleeRadius:            6,
+    // Slower hunger growth + earlier seek-food trigger so isolated humans
+    // have a wider reaction window before they starve.
+    hungerPerTick:         0.0020,
+    hungerThreshold:       0.45,
+    // Wider flee radius: predators have visionRadius 9 — humans now react
+    // at 8 tiles instead of 6 so they aren't ambushed at point-blank.
+    fleeRadius:            8,
     visionRadius:          10,
     reproduceThreshold:    0.68,
     reproduceEnergyCost:   0.28,
