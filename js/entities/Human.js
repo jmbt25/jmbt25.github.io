@@ -1,5 +1,8 @@
 import { Creature, STATE } from './Creature.js';
-import { TYPE, SKILL_BASE_CHANCE, SKILL_INHERIT_CHANCE, SKILL_INHERIT_SAME_CHANCE } from '../core/constants.js';
+import {
+  TYPE, SKILL_BASE_CHANCE, SKILL_INHERIT_CHANCE, SKILL_INHERIT_SAME_CHANCE,
+  HUT_HUNGER_RELIEF, MULTI_BIRTH_TWIN_CHANCE, MULTI_BIRTH_TRIPLET_CHANCE,
+} from '../core/constants.js';
 import { rand, randInt } from '../core/rng.js';
 import { pickName } from './names.js';
 import { rollSkill, getSkillById } from './skills.js';
@@ -92,6 +95,26 @@ export class Human extends Creature {
       this.strength = (this.baseStrength ?? 1) + Math.min(4, this.age / 100);
     }
     return super.tick(world, registry);
+  }
+
+  /** Adults near a hut benefit from stored food: hunger grows much slower.
+   *  This is the second half of the civilisation snowball — hut farms feed
+   *  more humans, which build more huts, which feed more humans. */
+  _hungerRate(world) {
+    const base = this.cfg.hungerPerTick;
+    if (this.isAdult && world.isNearHut(this.tileX, this.tileY)) {
+      return base * HUT_HUNGER_RELIEF;
+    }
+    return base;
+  }
+
+  /** Litter size — well-fed humans occasionally have twins or triplets,
+   *  which is how a real population overshoots replacement. */
+  _litterSize() {
+    const r = rand();
+    if (r < MULTI_BIRTH_TRIPLET_CHANCE) return 3;
+    if (r < MULTI_BIRTH_TRIPLET_CHANCE + MULTI_BIRTH_TWIN_CHANCE) return 2;
+    return 1;
   }
 
   // Override the base decision tree to slot in civ states.

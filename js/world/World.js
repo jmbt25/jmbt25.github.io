@@ -1,4 +1,4 @@
-import { WORLD_WIDTH, WORLD_HEIGHT } from '../core/constants.js';
+import { WORLD_WIDTH, WORLD_HEIGHT, HUT_FARM_RADIUS } from '../core/constants.js';
 import { TERRAIN, isPassable, getFertility } from './TerrainType.js';
 
 export class World {
@@ -15,6 +15,47 @@ export class World {
       { length: this.width * this.height },
       () => new Set(),
     );
+
+    // Per-tile count of nearby huts. addHutInfluence/removeHutInfluence keep
+    // it in sync as buildings are born and die. Plants and humans read it
+    // cheaply to apply farm bonuses.
+    this.hutInfluence = new Uint16Array(this.width * this.height);
+  }
+
+  // ── Hut influence (farm radius) ─────────────────────────────────────────────
+  addHutInfluence(cx, cy)    { this._stampHut(cx, cy, +1); }
+  removeHutInfluence(cx, cy) { this._stampHut(cx, cy, -1); }
+
+  isNearHut(x, y) {
+    if (!this.inBounds(x, y)) return false;
+    return this.hutInfluence[this.idx(x, y)] > 0;
+  }
+
+  _stampHut(cx, cy, delta) {
+    const r = HUT_FARM_RADIUS;
+    const r2 = r * r;
+    const x0 = Math.max(0, cx - r);
+    const y0 = Math.max(0, cy - r);
+    const x1 = Math.min(this.width  - 1, cx + r);
+    const y1 = Math.min(this.height - 1, cy + r);
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const dx = x - cx, dy = y - cy;
+        if (dx * dx + dy * dy <= r2) {
+          const i = this.idx(x, y);
+          // Guard against underflow if an entity:died fires for a hut that
+          // was already cleared by registry.clear() — the typed array would
+          // wrap to 65535.
+          if (delta < 0 && this.hutInfluence[i] === 0) continue;
+          this.hutInfluence[i] += delta;
+        }
+      }
+    }
+  }
+
+  /** Wipe all hut influence — used by the regen path. */
+  clearHutInfluence() {
+    this.hutInfluence.fill(0);
   }
 
   // ── Coordinate helpers ──────────────────────────────────────────────────────

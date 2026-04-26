@@ -1,7 +1,9 @@
 import { TYPE } from '../core/constants.js';
 import { eventBus } from '../core/eventBus.js';
 
-const MAX_PLANTS = 1200;
+// Plant cap doubled — agriculture-style growth around huts can push the
+// background plant count well past the old 1200 ceiling, and we want it to.
+const MAX_PLANTS = 2500;
 
 export class SimulationManager {
   constructor(world, registry, civ) {
@@ -34,17 +36,24 @@ export class SimulationManager {
           ? this.civ.getTribe(builder.tribeId)
           : null;
         if (tribe) this.civ.registerHut(entity, tribe);
-        // Architect skill (Joshua-only): the hut starts with extra HP
+        // Architect skill: the hut starts with extra HP
         if (builder?.architectHutHp) {
           entity.maxHp = builder.architectHutHp;
           entity.hp    = builder.architectHutHp;
         }
+        // Stamp the hut's farm influence onto the world so nearby plants
+        // grow faster and tribe members get hunger relief — this is the
+        // core "civilisation snowball" feedback loop.
+        this.world.addHutInfluence(entity.tileX, entity.tileY);
       }
     });
 
     eventBus.on('entity:died', (entity) => {
       if (entity.type === TYPE.HUMAN)    this.civ.removeMember(entity);
-      if (entity.type === TYPE.BUILDING) this.civ.removeHut(entity);
+      if (entity.type === TYPE.BUILDING) {
+        this.civ.removeHut(entity);
+        this.world.removeHutInfluence(entity.tileX, entity.tileY);
+      }
     });
   }
 

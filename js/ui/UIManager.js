@@ -228,6 +228,7 @@ export class UIManager {
     this._renderSeed();
     this.registry.clear();
     this.civ.reset();
+    this.world.clearHutInfluence();
     WorldGen.generate(this.world, seedToInt(this.worldSeed));
     this.renderer.rebuildTerrain();
     this.minimap.invalidateTerrain();
@@ -390,9 +391,9 @@ export class UIManager {
         if (this.registry.spawn(type, x, y)) placed++;
       }
     };
-    spawnRandom(TYPE.HERBIVORE, 75);
-    spawnRandom(TYPE.PREDATOR,  10);
-    spawnRandom(TYPE.HUMAN,     28);
+    spawnRandom(TYPE.HERBIVORE, 90);
+    spawnRandom(TYPE.PREDATOR,  6);
+    spawnRandom(TYPE.HUMAN,     60);
   }
 }
 

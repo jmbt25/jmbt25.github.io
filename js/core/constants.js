@@ -3,7 +3,21 @@ export const WORLD_WIDTH  = 120;
 export const WORLD_HEIGHT = 80;
 
 export const SIM_TICK_MS  = 80;   // ~12 ticks/sec
-export const MAX_ENTITIES = 2500;
+// Bumped 2500 → 6000 so a real civilisation (hundreds of humans + farms +
+// herds) can actually fit. Renderer InstancedMesh capacity follows this.
+export const MAX_ENTITIES = 6000;
+
+// Hut "farm" influence — every hut warps the world around it: plants grow
+// faster on adjacent tiles, and tribe members nearby get a hunger reduction
+// (food storage). This is what makes civilisation snowball.
+export const HUT_FARM_RADIUS    = 3;     // tiles
+export const HUT_PLANT_BOOST    = 3.5;   // multiplier on plant spread chance
+export const HUT_PLANT_LONGEVITY = 0.55; // age multiplier (lower = lives longer)
+export const HUT_HUNGER_RELIEF  = 0.55;  // multiplier on adult hunger growth
+
+// Reproduction: in safe conditions, multi-births accelerate population growth.
+export const MULTI_BIRTH_TWIN_CHANCE    = 0.22;
+export const MULTI_BIRTH_TRIPLET_CHANCE = 0.05;
 
 // Chance a newborn creature is "special" with a unique trait
 export const SPECIAL_CHANCE = 0.05;
@@ -58,23 +72,23 @@ export const SPECIES = Object.freeze({
     color:                 '#d04040',
   },
   [TYPE.HUMAN]: {
-    // Baseline lifespan ~1400 ticks (~110s wall-time) — doubled from 700.
-    // Thronglets adds an awareness-scaled longevity bonus on top so humans
-    // born late in a session live long enough to actually reach Stage 3-4.
+    // Baseline lifespan ~1400 ticks (~110s wall-time). Thronglets adds an
+    // awareness-scaled longevity bonus on top so humans born late in a
+    // session live long enough to actually reach Stage 3-4.
     maxAge:                1400,
     moveEveryNTicks:       6,
-    // Slower hunger growth + earlier seek-food trigger so isolated humans
-    // have a wider reaction window before they starve.
-    hungerPerTick:         0.0020,
+    // Lowered hunger growth so populations can grow past subsistence —
+    // hut shelter further halves this for tribe members nearby.
+    hungerPerTick:         0.0015,
     hungerThreshold:       0.45,
-    // Wider flee radius: predators have visionRadius 9 — humans now react
-    // at 8 tiles instead of 6 so they aren't ambushed at point-blank.
     fleeRadius:            8,
     visionRadius:          10,
-    reproduceThreshold:    0.68,
-    reproduceEnergyCost:   0.28,
-    gestationTicks:        40,
-    mateRadius:            12,
+    // Reproduction tuned for a real civilisation snowball: lower energy
+    // bar to start gestation, faster gestation, wider mate-finding radius.
+    reproduceThreshold:    0.50,
+    reproduceEnergyCost:   0.22,
+    gestationTicks:        24,
+    mateRadius:            18,
     color:                 '#e0a870',
     // Civ-specific
     buildEnergyCost:       0.45,

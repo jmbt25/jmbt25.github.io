@@ -53,7 +53,7 @@ export class Creature extends Entity {
     // temporary stay against hunger and old age so the player reliably
     // sees the moment play out. Predators can still kill them.
     if (!this._thronglet) {
-      this.hunger += this.cfg.hungerPerTick;
+      this.hunger += this._hungerRate(world);
       if (this.age >= this.maxAge || this.hunger >= 1.0) {
         this.alive = false;
         return [];
@@ -182,6 +182,12 @@ export class Creature extends Entity {
     }
   }
 
+  /** Per-tick hunger growth — overridable so e.g. humans near a hut eat from
+   *  stored food. Default: the species cfg value. */
+  _hungerRate(world) {
+    return this.cfg.hungerPerTick;
+  }
+
   _seekMate(world, registry) {
     const mate = registry.findNearest(this.type, this.tileX, this.tileY, this.cfg.mateRadius ?? 8, world);
     if (!mate || mate.id === this.id || mate.sex === this.sex || mate.gestating) {
@@ -205,11 +211,19 @@ export class Creature extends Entity {
   }
 
   _giveBirth(world) {
-    const ox = this.tileX + randInt(-1, 1);
-    const oy = this.tileY + randInt(-1, 1);
-    if (!world.inBounds(ox, oy) || !world.isPassable(ox, oy)) return [];
-    return [{ type: this.type, x: ox, y: oy, parent: this }];
+    const out = [];
+    const litter = this._litterSize();
+    for (let i = 0; i < litter; i++) {
+      const ox = this.tileX + randInt(-1, 1);
+      const oy = this.tileY + randInt(-1, 1);
+      if (!world.inBounds(ox, oy) || !world.isPassable(ox, oy)) continue;
+      out.push({ type: this.type, x: ox, y: oy, parent: this });
+    }
+    return out;
   }
+
+  /** Number of children per pregnancy. Default 1; humans roll twins/triplets. */
+  _litterSize() { return 1; }
 
   _stepToward(world, tx, ty) {
     const dx = Math.sign(tx - this.tileX);

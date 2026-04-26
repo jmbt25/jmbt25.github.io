@@ -85,11 +85,11 @@ function seedWorld(world, registry) {
     }
   };
 
-  // Larger initial seed so generations can actually unfold without leaning
-  // on respawn ops. Humans bumped 14 → 28 (two viable founding bands worth
-  // of genetic diversity); herbivores up so there's prey margin; predators
-  // unchanged so they don't dominate before tribes form.
-  spawnRandom(TYPE.HERBIVORE, 75);
-  spawnRandom(TYPE.PREDATOR,  10);
-  spawnRandom(TYPE.HUMAN,     28);
+  // Larger seed so a real civilisation can take root: humans 60 (enough
+  // genetic diversity for several founding bands), herbivores 90 for a
+  // healthy prey base, predators dropped to 6 so the early game isn't a
+  // bloodbath that ends civ before it begins.
+  spawnRandom(TYPE.HERBIVORE, 90);
+  spawnRandom(TYPE.PREDATOR,  6);
+  spawnRandom(TYPE.HUMAN,     60);
 }
