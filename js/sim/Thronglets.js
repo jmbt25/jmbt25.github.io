@@ -352,8 +352,11 @@ export class ThrongletsManager {
     // Find a passable land tile within a small radius and drop a pile
     const spot = this._findNearbyPassableTile(focus.x, focus.y, 4);
     if (!spot) return;
-    const count = 3 + Math.floor(Math.random() * 4);
+    // Bumped to 8-14 stones — a small pile reads as accidental, a real
+    // mound reads as deliberate. Beacon draws the eye even at full zoom.
+    const count = 8 + Math.floor(Math.random() * 7);
     this.glyphs.placePile(spot.x, spot.y, count);
+    this.glyphs.placeBeacon(spot.x, spot.y, 6500);
   }
 
   // ── Stage 3: SYMBOLS ─────────────────────────────────────────────────────
@@ -369,7 +372,10 @@ export class ThrongletsManager {
       const name = PRE_WORDS[this.preWordIdx++];
       // Anchor in an open patch around the camera
       const spot = this._findOpenPatch(focus.x, focus.y, 10);
-      if (spot) this.glyphs.placeShape(name, spot.x, spot.y);
+      if (spot) {
+        this.glyphs.placeShape(name, spot.x, spot.y);
+        this.glyphs.placeBeacon(spot.x, spot.y, 7500);
+      }
       return;
     }
 
@@ -382,7 +388,10 @@ export class ThrongletsManager {
       this.wordIdx = 0;
     }
     const spot = this._findOpenPatch(focus.x, focus.y, 12);
-    if (spot) this.glyphs.placeWord(word, spot.x, spot.y);
+    if (spot) {
+      this.glyphs.placeWord(word, spot.x, spot.y);
+      this.glyphs.placeBeacon(spot.x, spot.y, 8000);
+    }
   }
 
   // ── Stage 4: DIRECT CONTACT ──────────────────────────────────────────────

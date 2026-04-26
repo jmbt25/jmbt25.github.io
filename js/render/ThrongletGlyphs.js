@@ -18,8 +18,12 @@
 import * as THREE from 'three';
 
 const GLYPH_CAPACITY = 2400;
-const STONE_COLOR    = new THREE.Color('#1a1612');
-const STONE_HIGHLIGHT = new THREE.Color('#2c241a');
+const BEACON_CAPACITY = 24;
+// Slightly warmer than pure rock so stones read against grass/forest
+// without losing the "deliberately arranged" feel.
+const STONE_COLOR     = new THREE.Color('#3d2c1e');
+const STONE_HIGHLIGHT = new THREE.Color('#5a4231');
+const BEACON_COLOR    = new THREE.Color('#e6f0ff');
 
 // 3x5 bitmap font. Each glyph is 5 rows top→bottom, 3 columns left→right,
 // '#' = stone present, '.' = empty. Letters not listed render as a blank.
@@ -98,8 +102,9 @@ export class ThrongletGlyphs {
   constructor(tileRenderer3d) {
     this.tileRenderer = tileRenderer3d;
 
-    // Each "stone" is a small box. flatShading + dark colour reads as rock.
-    const geom = new THREE.BoxGeometry(0.22, 0.18, 0.22);
+    // Each "stone" is a chunky box. ~38% of a tile so it's visible from the
+    // default camera height. flatShading + warm colour reads as rough rock.
+    const geom = new THREE.BoxGeometry(0.38, 0.28, 0.38);
     const mat  = new THREE.MeshStandardMaterial({
       color: 0xffffff, vertexColors: false,
       roughness: 0.95, metalness: 0.0, flatShading: true,
@@ -115,8 +120,34 @@ export class ThrongletGlyphs {
     );
     this.mesh = mesh;
 
+    // Beacon: a tall additively-blended pillar that pulses above newly-placed
+    // offerings/glyphs for a few seconds. Without this, an offering on a
+    // 120×80 world is genuinely hard to spot at default zoom.
+    const beaconGeom = new THREE.CylinderGeometry(0.12, 0.45, 9.0, 14, 1, true);
+    beaconGeom.translate(0, 4.5, 0); // base at y=0
+    const beaconMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    const beaconMesh = new THREE.InstancedMesh(beaconGeom, beaconMat, BEACON_CAPACITY);
+    beaconMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    beaconMesh.frustumCulled = false;
+    beaconMesh.count = 0;
+    beaconMesh.castShadow = false;
+    beaconMesh.receiveShadow = false;
+    beaconMesh.renderOrder = 4;
+    beaconMesh.instanceColor = new THREE.InstancedBufferAttribute(
+      new Float32Array(BEACON_CAPACITY * 3), 3
+    );
+    this.beaconMesh = beaconMesh;
+
     // Parallel JS-side records for fade and bookkeeping
-    this.stones = [];   // { x, y, bornAt, lifetimeMs, baseY, jitter }
+    this.stones  = [];  // { x, y, bornAt, lifetimeMs, baseY, jitter }
+    this.beacons = [];  // { x, y, baseY, bornAt, lifetimeMs }
     this._dummy = new THREE.Object3D();
     this._color = new THREE.Color();
   }
@@ -183,12 +214,33 @@ export class ThrongletGlyphs {
     }
   }
 
-  /** Drop every active stone immediately (used by reset()). */
+  /**
+   * Place a glowing beacon over (tileX, tileY) for `lifetimeMs`. Used by
+   * Stage 2/3 events so the player can spot a fresh offering or glyph
+   * even at full zoom-out without panning.
+   */
+  placeBeacon(tileX, tileY, lifetimeMs = 6000) {
+    if (this.beacons.length >= BEACON_CAPACITY) {
+      // Drop the oldest to make room
+      this.beacons.shift();
+    }
+    const baseY = this.tileRenderer.getElevationAt(tileX, tileY);
+    this.beacons.push({
+      x: tileX, y: tileY, baseY,
+      bornAt: performance.now(), lifetimeMs,
+    });
+  }
+
+  /** Drop every active stone + beacon immediately (used by reset()). */
   clearAll() {
     this.stones.length = 0;
+    this.beacons.length = 0;
     this.mesh.count = 0;
     this.mesh.instanceMatrix.needsUpdate = true;
     if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+    this.beaconMesh.count = 0;
+    this.beaconMesh.instanceMatrix.needsUpdate = true;
+    if (this.beaconMesh.instanceColor) this.beaconMesh.instanceColor.needsUpdate = true;
   }
 
   /**
@@ -237,12 +289,47 @@ export class ThrongletGlyphs {
     this.mesh.count = this.stones.length;
     this.mesh.instanceMatrix.needsUpdate = true;
     if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+
+    // ── Beacons: vertical pillars of light, fade in fast then fade out
+    let writeBI = 0;
+    for (let i = 0; i < this.beacons.length; i++) {
+      const b = this.beacons[i];
+      const age = now - b.bornAt;
+      if (age >= b.lifetimeMs) continue;
+      if (i !== writeBI) this.beacons[writeBI] = b;
+      writeBI++;
+    }
+    this.beacons.length = writeBI;
+
+    for (let i = 0; i < this.beacons.length; i++) {
+      const b = this.beacons[i];
+      const age = now - b.bornAt;
+      // Quick rise (250ms) → steady → slow fade in the last 1500ms
+      const FADE_IN  = 250;
+      const FADE_OUT = 1500;
+      let alpha = 1;
+      if (age < FADE_IN) alpha = age / FADE_IN;
+      else if (age > b.lifetimeMs - FADE_OUT) alpha = (b.lifetimeMs - age) / FADE_OUT;
+      // Subtle pulse so it looks alive
+      const pulse = 0.85 + Math.sin(age * 0.006) * 0.15;
+      const scaleXZ = 0.9 + Math.sin(age * 0.004 + 1.0) * 0.15;
+      dummy.position.set(b.x + 0.5, b.baseY + 0.05, b.y + 0.5);
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.set(scaleXZ, alpha * pulse, scaleXZ);
+      dummy.updateMatrix();
+      this.beaconMesh.setMatrixAt(i, dummy.matrix);
+      // Fade colour by reducing brightness via instance colour
+      this._color.copy(BEACON_COLOR).multiplyScalar(alpha * pulse);
+      this.beaconMesh.setColorAt(i, this._color);
+    }
+    this.beaconMesh.count = this.beacons.length;
+    this.beaconMesh.instanceMatrix.needsUpdate = true;
+    if (this.beaconMesh.instanceColor) this.beaconMesh.instanceColor.needsUpdate = true;
   }
 
   /** Refresh elevation lookups when terrain regenerates. */
   refreshElevations() {
-    for (const s of this.stones) {
-      s.baseY = this.tileRenderer.getElevationAt(s.x, s.y);
-    }
+    for (const s of this.stones)  s.baseY = this.tileRenderer.getElevationAt(s.x, s.y);
+    for (const b of this.beacons) b.baseY = this.tileRenderer.getElevationAt(b.x, b.y);
   }
 }

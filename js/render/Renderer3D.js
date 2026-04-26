@@ -77,6 +77,7 @@ export class Renderer3D {
     this.scene.add(this.fireflies.points);
     this.scene.add(this.effects.points);
     this.scene.add(this.thrGlyphs.mesh);
+    this.scene.add(this.thrGlyphs.beaconMesh);
     for (const m of this.decorations.allMeshes) this.scene.add(m);
     for (const m of this.entityRenderer3d.allMeshes) this.scene.add(m);
     for (const m of this.statusBubbles.allMeshes) this.scene.add(m);
