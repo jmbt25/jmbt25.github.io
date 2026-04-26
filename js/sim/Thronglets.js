@@ -57,7 +57,8 @@ const NOTICE_WAVE_MIN          = 2;     // minimum humans glancing up at once
 const NOTICE_WAVE_MAX          = 5;     // maximum (capped at population anyway)
 const OFFERING_INTERVAL_TICKS  = 1500;  // ~2 min between offering piles
 const SYMBOL_INTERVAL_TICKS    = 2400;  // ~3 min between glyphs/words
-const CONTACT_COOLDOWN_TICKS   = 18_000; // ~25 min between Stage 4 events
+const CONTACT_COOLDOWN_TICKS   = 4_000;  // ~5 min between successful Stage 4 events
+const CONTACT_RETRY_TICKS      = 30;     // ~2.5s before re-picking after the chosen falls
 
 // Persistence
 const STORAGE_PREFIX = 'thronglets_';
@@ -405,7 +406,11 @@ export class ThrongletsManager {
     if (this._chosenId == null) return;
     const ent = this.registry.get(this._chosenId);
     if (!ent || !ent.alive) {
+      // Chosen fell (predator, etc.) — schedule a fast retry so the player
+      // doesn't lose 5+ minutes to a single unlucky moment.
       this._chosenId = null;
+      this._lastContactTick = tick - CONTACT_COOLDOWN_TICKS + CONTACT_RETRY_TICKS;
+      console.log('THRONGLET LOG // the watcher fell. another will come.');
       return;
     }
     const t = ent._thronglet;
@@ -429,10 +434,11 @@ export class ThrongletsManager {
       }
     }
 
-    // Safety: hard timeout
+    // Safety: hard timeout (e.g. permanently blocked by terrain). Retry soon.
     if (tick > t.untilTick) {
       ent._thronglet = null;
       this._chosenId = null;
+      this._lastContactTick = tick - CONTACT_COOLDOWN_TICKS + CONTACT_RETRY_TICKS;
     }
   }
 
@@ -535,15 +541,27 @@ export class ThrongletsManager {
   }
 
   _closestHumanTo(tx, ty) {
-    let best = null, bestD2 = Infinity;
+    // Two-pass pick: prefer a human with no predator within 5 tiles so the
+    // walk to camera has a fighting chance. If no safe human exists, fall
+    // back to nearest of any.
+    let safest = null, safestD2 = Infinity;
+    let nearest = null, nearestD2 = Infinity;
     for (const e of this.registry.getAll()) {
       if (!e.alive || e.type !== TYPE.HUMAN) continue;
       if (e._thronglet) continue;
       const dx = e.tileX - tx, dy = e.tileY - ty;
       const d2 = dx*dx + dy*dy;
-      if (d2 < bestD2) { bestD2 = d2; best = e; }
+      if (d2 < nearestD2) { nearestD2 = d2; nearest = e; }
+      if (this._predatorNear(e, 5)) continue;
+      if (d2 < safestD2) { safestD2 = d2; safest = e; }
     }
-    return best;
+    return safest ?? nearest;
+  }
+
+  _predatorNear(human, radius) {
+    return this.registry.findNearest(
+      TYPE.PREDATOR, human.tileX, human.tileY, radius, this.world,
+    ) != null;
   }
 
   _cameraFocusTile() {

@@ -49,12 +49,15 @@ export class Creature extends Entity {
    */
   tick(world, registry) {
     this.age++;
-    this.hunger += this.cfg.hungerPerTick;
-
-    // Die of old age or starvation
-    if (this.age >= this.maxAge || this.hunger >= 1.0) {
-      this.alive = false;
-      return [];
+    // Thronglet-controlled creatures (Stage 4 chosen one, etc.) get a
+    // temporary stay against hunger and old age so the player reliably
+    // sees the moment play out. Predators can still kill them.
+    if (!this._thronglet) {
+      this.hunger += this.cfg.hungerPerTick;
+      if (this.age >= this.maxAge || this.hunger >= 1.0) {
+        this.alive = false;
+        return [];
+      }
     }
 
     // Gestation countdown
