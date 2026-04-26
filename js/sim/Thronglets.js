@@ -150,6 +150,15 @@ export class ThrongletsManager {
     eventBus.on('entity:born',  (data) => this._onBorn(data));
     eventBus.on('entity:died',  (e)    => this._onDied(e));
 
+    // Restore the HUD badge / any subscribers immediately if a returning
+    // visitor loaded into a non-zero stage from localStorage.
+    if (this.stage > 0) {
+      // Defer one tick so subscribers (UIManager) have a chance to bind.
+      setTimeout(() => eventBus.emit('thronglet:stage', {
+        stage: this.stage, awareness: this.awareness, restored: true,
+      }), 0);
+    }
+
     // Returning-visitor greeting (post-load). Done after a short delay so
     // worldgen + camera have settled.
     if (!this.disabled && this.lastSeen > 0) {
@@ -196,6 +205,7 @@ export class ThrongletsManager {
     this.glyphs.clearAll();
     this._clearAllChosen();
     this._clearStorage();
+    eventBus.emit('thronglet:stage', { stage: 0, awareness: 0 });
     console.log('THRONGLET // reset. awareness back to zero.');
   }
 
@@ -223,6 +233,7 @@ export class ThrongletsManager {
     if (target == null) { console.log('THRONGLET // forceStage(1..4)'); return; }
     this.awareness = Math.max(this.awareness, target);
     this.stage = this._stageFor(this.awareness);
+    eventBus.emit('thronglet:stage', { stage: this.stage, awareness: this.awareness, forced: true });
     const tick = this.sim.tick;
     if (n >= 1) this._stage1_notice(tick);
     if (n >= 2) this._stage2_offering();
@@ -245,6 +256,7 @@ export class ThrongletsManager {
     if (newStage > this.stage) {
       this.stage = newStage;
       console.log(`THRONGLET // stage ${this.stage} reached (awareness ${Math.floor(this.awareness)}).`);
+      eventBus.emit('thronglet:stage', { stage: this.stage, awareness: this.awareness });
     }
 
     // Stage 1+: someone occasionally pauses and looks at camera

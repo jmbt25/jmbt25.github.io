@@ -8,6 +8,21 @@ import { Modals }            from './Modals.js';
 import { FpsMeter }          from './FpsMeter.js';
 import { WorldGen }          from '../world/WorldGen.js';
 import { TYPE }              from '../core/constants.js';
+import { eventBus }          from '../core/eventBus.js';
+
+const THRONGLET_STAGE_NAMES = {
+  0: 'dormant',
+  1: 'noticing',
+  2: 'offering',
+  3: 'symbols',
+  4: 'contact',
+};
+const THRONGLET_STAGE_BLURBS = {
+  1: 'Some humans paused and looked toward you.',
+  2: 'A small offering has been arranged near your view.',
+  3: 'They are spelling something on the ground.',
+  4: 'One of them is walking toward you.',
+};
 
 const TERRAIN_TOOLS = new Set([
   TOOL.TERRAIN_WATER, TOOL.TERRAIN_GRASS, TOOL.TERRAIN_FOREST,
@@ -65,6 +80,7 @@ export class UIManager {
     this._bindKeyboard();
     this._bindBrush();
     this._bindCanvasReadout();
+    this._bindThrongletBadge();
 
     // Periodic ticker for HUD readouts (day/night, FPS already self-driven)
     setInterval(() => this._refreshHud(), 250);
@@ -103,6 +119,33 @@ export class UIManager {
       const idx = +slider.value;
       this.brushSize = sizes[idx];
       if (valEl) valEl.textContent = `${this.brushSize}×${this.brushSize}`;
+    });
+  }
+
+  _bindThrongletBadge() {
+    const badge = document.getElementById('thronglet-badge');
+    const stageEl = document.getElementById('thr-stage');
+    if (!badge || !stageEl) return;
+
+    eventBus.on('thronglet:stage', ({ stage, restored, forced }) => {
+      if (stage <= 0) {
+        badge.style.display = 'none';
+        return;
+      }
+      stageEl.textContent = String(stage);
+      badge.title = `Thronglet awareness — ${THRONGLET_STAGE_NAMES[stage] ?? 'active'}. Run window.__thronglets.status() for details.`;
+      badge.style.display = 'inline-flex';
+
+      // Surface a toast on real stage transitions (skip when this is just
+      // a restore-from-localStorage notification).
+      if (!restored) {
+        const blurb = THRONGLET_STAGE_BLURBS[stage] ?? 'Awareness deepening.';
+        const prefix = forced ? 'Forced to ' : '';
+        this.toaster.show(
+          `<b>${prefix}Stage ${stage}</b> — ${blurb}`,
+          { kind: 'skill', icon: '◉', key: `thr-stage-${stage}` },
+        );
+      }
     });
   }
 

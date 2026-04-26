@@ -23,11 +23,13 @@ export class Camera3D {
     this.controls.maxDistance = 220;
     this.controls.maxPolarAngle = Math.PI * 0.48;
 
-    // Reserve left-click for ToolManager. Right = rotate, Middle = pan.
+    // Reserve left-click for ToolManager. Right-drag pans (most users
+    // expect a "drag the world" gesture, especially on a top-down sim);
+    // middle-drag orbits for the rare case the user wants a different angle.
     this.controls.mouseButtons = {
       LEFT:   null,
-      MIDDLE: THREE.MOUSE.PAN,
-      RIGHT:  THREE.MOUSE.ROTATE,
+      MIDDLE: THREE.MOUSE.ROTATE,
+      RIGHT:  THREE.MOUSE.PAN,
     };
 
     // Reserve single-finger touch for ToolManager. Two-finger = OrbitControls.

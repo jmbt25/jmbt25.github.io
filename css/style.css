@@ -307,6 +307,41 @@ html, body {
 .ctrl-btn.danger:hover  { background: rgba(80,20,30,0.45); border-color: rgba(255,101,119,0.6); }
 .ctrl-btn.active        { background: rgba(95,168,255,0.16); border-color: var(--accent); color: var(--accent); }
 
+/* Thronglet awareness HUD badge — appears once Stage 1 is reached so the
+   player has unmissable confirmation the awareness layer is running. */
+.thr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(230, 240, 255, 0.35);
+  background: linear-gradient(180deg, rgba(230,240,255,0.10), rgba(95,168,255,0.06));
+  color: var(--text-bright);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  box-shadow: 0 0 12px rgba(230, 240, 255, 0.18), inset 0 0 0 1px rgba(230,240,255,0.05);
+  animation: thr-pulse 3.2s ease-in-out infinite;
+}
+.thr-badge .thr-eye {
+  font-size: 13px;
+  color: #e6f0ff;
+  text-shadow: 0 0 6px rgba(230,240,255,0.7);
+}
+.thr-badge .thr-text { font-family: 'Inter', system-ui, sans-serif; }
+.thr-badge .thr-text b {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  margin-left: 2px;
+  color: #f1f6ff;
+}
+@keyframes thr-pulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(230, 240, 255, 0.18), inset 0 0 0 1px rgba(230,240,255,0.05); }
+  50%      { box-shadow: 0 0 22px rgba(230, 240, 255, 0.45), inset 0 0 0 1px rgba(230,240,255,0.15); }
+}
+
 .speed-group {
   display: flex; align-items: center;
   background: rgba(20, 26, 42, 0.7);
@@ -711,7 +746,15 @@ html, body {
 .tag.tag-skill { background: rgba(95,216,255,0.10); border-color: rgba(95,216,255,0.35); color: #aeeaff; }
 .tag.tag-tribe { font-weight: 600; }
 
-/* Tribes panel */
+/* Tribes panel — capped height so the Inspector below never gets crowded out */
+#tribes-body {
+  max-height: 168px;
+  overflow-y: auto;
+  padding-right: 4px;
+  /* Soft fade at the bottom so the user knows there's more below */
+  mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 18px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 18px), transparent 100%);
+}
 .tribe-row {
   display: grid;
   grid-template-columns: 10px 1fr auto;

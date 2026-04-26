@@ -2,6 +2,11 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { TYPE, MAX_ENTITIES } from '../core/constants.js';
 import { UNAFFILIATED_COLOR } from '../sim/Tribe.js';
+import { eventBus } from '../core/eventBus.js';
+
+// How long the spawn / death animations take (ms wall-time).
+const FADE_IN_MS  = 420;
+const FADE_OUT_MS = 520;
 
 // ── Geometry helpers ──────────────────────────────────────────────────────
 // Local space: +X = forward, +Y = up, +Z = right. Renderer applies a single
@@ -249,6 +254,30 @@ export class EntityRenderer3D {
     this._hsl   = { h: 0, s: 0, l: 0 };   // reused across _jitter calls
     this.civ    = null;
 
+    // Dying-entity "ghosts" so deaths fade out instead of popping. We
+    // snapshot the entity's last visual state on entity:died and animate
+    // a shrink + colour bleach over FADE_OUT_MS, then drop the ghost.
+    this._ghosts = [];   // { type, x, z, heading, scale, deadAt, tribeId, trait, skill, frenzyTimer, gestating, hunger, id }
+    eventBus.on('entity:died', (ent) => {
+      // Plants and buildings disappear less dramatically, but still fade.
+      this._ghosts.push({
+        type:        ent.type,
+        x:           ent.tileX + 0.5,
+        z:           ent.tileY + 0.5,
+        heading:     ent.heading ?? 0,
+        scale:       ent.scale ?? 1,
+        stage:       ent.stage,
+        tribeId:     ent.tribeId,
+        trait:       ent.trait,
+        skill:       ent.skill,
+        frenzyTimer: ent.frenzyTimer ?? 0,
+        gestating:   ent.gestating ?? false,
+        hunger:      ent.hunger,
+        id:          ent.id,
+        deadAt:      performance.now(),
+      });
+    });
+
     this.partGroups = {};
 
     const baseMat = (extra) => new THREE.MeshStandardMaterial({
@@ -410,6 +439,17 @@ export class EntityRenderer3D {
       if (ent.type === TYPE.PLANT && ent.stage !== undefined) {
         s = scale * (0.5 + ent.stage * 0.30);
       }
+      // Spawn fade-in: ramp from 0 → full size over FADE_IN_MS so newborns
+      // grow out of nothing instead of popping at full scale.
+      if (ent.bornAt) {
+        const since = now - ent.bornAt;
+        if (since < FADE_IN_MS) {
+          const k = since / FADE_IN_MS;
+          // Easing with a tiny overshoot so it lands with a hint of "puff"
+          const e = k < 1 ? k * k * (3 - 2 * k) : 1;
+          s *= 0.05 + 0.95 * e;
+        }
+      }
 
       // Plants sway in the wind: gentle Z roll + tiny X tilt, no heading.
       if (ent.type === TYPE.PLANT) {
@@ -467,6 +507,41 @@ export class EntityRenderer3D {
         skillCount++;
       }
     }
+
+    // ── Dying ghosts: draw fading-out copies of recently-killed entities
+    // after the live ones, sharing the same per-type instance buffers. We
+    // compact in-place as ghosts expire to keep allocation-free per frame.
+    let writeIdx = 0;
+    for (let i = 0; i < this._ghosts.length; i++) {
+      const g = this._ghosts[i];
+      const since = now - g.deadAt;
+      if (since >= FADE_OUT_MS) continue; // drop
+      if (i !== writeIdx) this._ghosts[writeIdx] = g;
+      writeIdx++;
+
+      const parts = this.partGroups[g.type];
+      if (!parts) continue;
+      const idx = counts[g.type];
+      if (idx >= MAX_ENTITIES) continue;
+      counts[g.type]++;
+
+      const k = since / FADE_OUT_MS;
+      const ease = 1 - (1 - k) * (1 - k); // ease-out
+      const elev = tileRenderer3d.getElevationAt(Math.floor(g.x), Math.floor(g.z));
+      const scale = (g.scale ?? 1) * (1 - ease);
+      this._dummy.position.set(g.x, elev + ease * 0.15, g.z);
+      this._dummy.rotation.set(ease * 0.3, -(g.heading ?? 0), 0);
+      this._dummy.scale.set(scale, scale, scale);
+      this._dummy.updateMatrix();
+      for (const part of parts) {
+        part.mesh.setMatrixAt(idx, this._dummy.matrix);
+        const c = this._colorForPart(g, part.colorRole);
+        // Bleach toward grey as the ghost fades
+        c.lerp(this._tmp.setRGB(0.5, 0.5, 0.55), ease * 0.6);
+        part.mesh.setColorAt(idx, c);
+      }
+    }
+    this._ghosts.length = writeIdx;
 
     for (const [type, parts] of Object.entries(this.partGroups)) {
       const cnt = counts[type];

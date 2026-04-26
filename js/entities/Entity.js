@@ -8,6 +8,9 @@ export class Entity {
     this.tileY = tileY;
     this.alive = true;
     this.age   = 0;
+    // Wall-clock stamp of construction. Renderer reads this to grow the
+    // entity's scale from 0 → 1 over a short window so spawns don't pop in.
+    this.bornAt = (typeof performance !== 'undefined') ? performance.now() : 0;
 
     // ── Motion interpolation (read by renderer) ────────────────────────────
     // prevTileX/Y is where we were before the most recent move.
