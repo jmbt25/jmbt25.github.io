@@ -51,7 +51,10 @@ const THRESHOLDS = {
 };
 
 // Behaviour cadences (in sim ticks; SIM_TICK_MS ≈ 80ms → 12 ticks/sec)
-const NOTICE_INTERVAL_TICKS    = 240;   // ~20s between someone glancing up
+const NOTICE_INTERVAL_TICKS    = 240;   // ~20s between noticing waves
+const NOTICE_PAUSE_TICKS       = 36;    // ~3s of frozen "looking up"
+const NOTICE_WAVE_MIN          = 2;     // minimum humans glancing up at once
+const NOTICE_WAVE_MAX          = 5;     // maximum (capped at population anyway)
 const OFFERING_INTERVAL_TICKS  = 1500;  // ~2 min between offering piles
 const SYMBOL_INTERVAL_TICKS    = 2400;  // ~3 min between glyphs/words
 const CONTACT_COOLDOWN_TICKS   = 18_000; // ~25 min between Stage 4 events
@@ -207,6 +210,27 @@ export class ThrongletsManager {
     };
   }
 
+  /**
+   * Console testing helper — jump straight to a stage so you don't have to
+   * wait minutes to see the higher-stage behaviours. Pass 1..4. Also fires
+   * one immediate behaviour for that stage so you see something right away.
+   */
+  forceStage(n) {
+    if (this.disabled) { console.log('THRONGLET // currently disabled'); return; }
+    const map = { 1: THRESHOLDS.NOTICING, 2: THRESHOLDS.OFFERINGS,
+                  3: THRESHOLDS.SYMBOLS,  4: THRESHOLDS.CONTACT };
+    const target = map[n];
+    if (target == null) { console.log('THRONGLET // forceStage(1..4)'); return; }
+    this.awareness = Math.max(this.awareness, target);
+    this.stage = this._stageFor(this.awareness);
+    const tick = this.sim.tick;
+    if (n >= 1) this._stage1_notice(tick);
+    if (n >= 2) this._stage2_offering();
+    if (n >= 3) this._stage3_symbol();
+    if (n >= 4) { this._lastContactTick = -9999; this._stage4_contact(tick); }
+    console.log('THRONGLET // jumped to stage', this.stage);
+  }
+
   // ── Per-tick driver ──────────────────────────────────────────────────────
 
   _onTick(tick) {
@@ -261,18 +285,39 @@ export class ThrongletsManager {
   }
 
   // ── Stage 1: NOTICING ────────────────────────────────────────────────────
+  //
+  // A small wave of humans pause and tilt their heads up toward the camera.
+  // Multiple at once reads as a coordinated, slightly-off moment rather than
+  // "one creature glitched"; the StatusBubbles 'aware' eye glyph above each
+  // makes it spottable even when zoomed out.
 
   _stage1_notice(tick) {
-    const human = this._pickRandomHuman();
-    if (!human) return;
-    const heading = this._headingTowardCamera(human.tileX, human.tileY);
-    human.heading = heading;
-    // 'pause' freezes the human's AI for a few sim ticks via Human._act().
-    human._thronglet = {
-      action: 'pause',
-      heading,
-      untilTick: tick + 18,    // ~1.5s wall-time
-    };
+    const pool = this._allFreeHumans();
+    if (!pool.length) return;
+    const want = NOTICE_WAVE_MIN + Math.floor(Math.random() * (NOTICE_WAVE_MAX - NOTICE_WAVE_MIN + 1));
+    const count = Math.min(want, pool.length);
+
+    // Fisher-Yates partial shuffle to pick `count` distinct humans
+    for (let i = 0; i < count; i++) {
+      const j = i + Math.floor(Math.random() * (pool.length - i));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+
+    for (let i = 0; i < count; i++) {
+      const h = pool[i];
+      const heading = this._headingTowardCamera(h.tileX, h.tileY);
+      h.heading = heading;
+      h._thronglet = {
+        action: 'pause',
+        heading,
+        untilTick: tick + NOTICE_PAUSE_TICKS,
+      };
+    }
+
+    if (!this._loggedFirstNotice) {
+      this._loggedFirstNotice = true;
+      console.log(`THRONGLET // first noticing — ${count} watcher(s) felt your gaze.`);
+    }
   }
 
   // ── Stage 2: OFFERINGS ───────────────────────────────────────────────────
@@ -464,12 +509,17 @@ export class ThrongletsManager {
   }
 
   _pickRandomHuman() {
-    const all = [];
-    for (const e of this.registry.getAll()) {
-      if (e.alive && e.type === TYPE.HUMAN && !e._thronglet) all.push(e);
-    }
+    const all = this._allFreeHumans();
     if (!all.length) return null;
     return all[Math.floor(Math.random() * all.length)];
+  }
+
+  _allFreeHumans() {
+    const out = [];
+    for (const e of this.registry.getAll()) {
+      if (e.alive && e.type === TYPE.HUMAN && !e._thronglet) out.push(e);
+    }
+    return out;
   }
 
   _closestHumanTo(tx, ty) {

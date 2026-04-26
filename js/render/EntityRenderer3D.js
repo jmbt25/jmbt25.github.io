@@ -423,7 +423,16 @@ export class EntityRenderer3D {
       } else {
         this._dummy.position.set(x, y, z);
         // Heading + idle look-around (Y) and walking pitch (Z)
-        this._dummy.rotation.set(0, -((ent.heading ?? 0)) + lookAround, sway);
+        let yRot = -((ent.heading ?? 0)) + lookAround;
+        let xTilt = 0;
+        // Thronglet awareness: tilt the head/body back to look up at the
+        // overhead camera and lock the heading so the look-around drift
+        // doesn't break the stare.
+        if (ent._thronglet) {
+          yRot = -(ent.heading ?? 0);
+          xTilt = (ent._thronglet.action === 'walk') ? -0.18 : -0.42;
+        }
+        this._dummy.rotation.set(xTilt, yRot, sway);
       }
       this._dummy.scale.set(s, s, s);
       this._dummy.updateMatrix();

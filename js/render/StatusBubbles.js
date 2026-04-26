@@ -102,12 +102,16 @@ const KINDS = [
   { id: 'build',    glyph: '⚒',   color: '#cba66e' },   // BUILD
   { id: 'baby',     glyph: '+',   color: '#7fd58c' },   // GESTATING
   { id: 'sleep',    glyph: 'z',   color: '#5fa8ff' },   // resting (well-fed wander)
+  { id: 'aware',    glyph: '◉',   color: '#e6f0ff' },   // Thronglet awareness — looking at you
 ];
 
 function pickKind(ent) {
   if (ent.type !== TYPE.HERBIVORE && ent.type !== TYPE.PREDATOR && ent.type !== TYPE.HUMAN) {
     return null;
   }
+  // Thronglet awareness override — outranks every other state so a chosen
+  // one staring at the camera is never masked by hunger/love/etc.
+  if (ent._thronglet)           return 'aware';
   if (ent.gestating)            return 'baby';
   if (ent.frenzyTimer > 0)      return 'war';
   if (ent.state === 'flee')     return 'alarm';
