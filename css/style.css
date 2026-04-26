@@ -217,95 +217,375 @@ html, body {
   touch-action: none;
 }
 
-/* ── HUD ─────────────────────────────────────────────────────────────── */
-#hud {
+/* ── Outer red-glow vignette frame ───────────────────────────────────── */
+/* Always-on subtle red rim that frames the world like a CRT bezel.
+   The Stage-4 #moment-vignette intensifies on top of this. */
+#world-frame-glow {
   position: absolute;
-  top: 10px; left: 12px; right: 12px;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow:
+    inset 0  0 110px 0  rgba(180, 40, 40, 0.22),
+    inset 0  0 360px 80px rgba(8, 4, 6, 0.55);
+  mix-blend-mode: screen;
+}
+
+/* ── Big centered title ──────────────────────────────────────────────── */
+#world-title {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  z-index: 6;
+  user-select: none;
+}
+.world-title-main {
+  font-family: 'Press Start 2P', system-ui, monospace;
+  font-size: clamp(28px, 4.6vw, 64px);
+  letter-spacing: 0.08em;
+  color: #c8e7ff;
+  text-shadow:
+    0 0 18px rgba(95, 168, 255, 0.55),
+    0 0 38px rgba(95, 168, 255, 0.30),
+    0 4px 0  rgba(8, 18, 38, 0.55);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.world-title-tag {
+  font-family: 'VT323', 'JetBrains Mono', monospace;
+  font-size: clamp(13px, 1.4vw, 20px);
+  letter-spacing: 0.08em;
+  color: rgba(220, 230, 255, 0.85);
+  text-shadow: 0 1px 6px rgba(8, 18, 38, 0.6);
+}
+
+/* ── Generic chunky panel ────────────────────────────────────────────── */
+.hud-panel {
+  position: absolute;
+  z-index: 5;
+  background: linear-gradient(180deg, rgba(8, 14, 26, 0.86), rgba(6, 10, 20, 0.92));
+  border: 1px solid rgba(95, 168, 255, 0.22);
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35) inset,
+    0 0 24px rgba(95, 168, 255, 0.06) inset,
+    0 8px 28px -8px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px) saturate(130%);
+  -webkit-backdrop-filter: blur(8px) saturate(130%);
+  pointer-events: auto;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-bright);
+}
+
+/* ── Top-left status panel ───────────────────────────────────────────── */
+#hud-tl {
+  top: 14px;
+  left: 14px;
+  width: 220px;
+  padding: 10px 12px;
+}
+.hud-panel-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: rgba(11, 16, 28, 0.72);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  pointer-events: none;
-  box-shadow: var(--shadow-soft);
-  z-index: 5;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(95, 168, 255, 0.18);
 }
-#hud > * { pointer-events: auto; }
-
-.hud-block {
-  display: flex; flex-direction: column;
-  padding-right: 12px;
-  border-right: 1px solid var(--border);
-  margin-right: 4px;
-}
-.hud-title {
-  font-size: 13px;
+.hud-panel-title {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: #aac6ff;
   font-weight: 700;
-  color: var(--text-bright);
-  letter-spacing: -0.01em;
-}
-.hud-sub {
-  font-size: 9px;
-  color: var(--text-faint);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-weight: 500;
 }
-
-.hud-stat {
-  display: flex; flex-direction: column;
-  min-width: 40px;
-}
-.hud-label {
-  font-size: 9px;
-  color: var(--text-faint);
-  letter-spacing: 0.12em;
+.hud-panel-tag {
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
   text-transform: uppercase;
+}
+.hud-stat-row {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 10px;
+}
+.hud-stat-icon {
+  text-align: center;
+  font-size: 10px;
+  color: var(--accent);
+  text-shadow: 0 0 6px rgba(95, 168, 255, 0.5);
+}
+.hud-stat-label {
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  font-size: 9px;
   font-weight: 600;
 }
-.hud-value {
-  font-size: 13px;
-  font-weight: 600;
+.hud-stat-value {
   color: var(--text-bright);
   font-variant-numeric: tabular-nums;
-  font-family: 'JetBrains Mono', monospace;
-  line-height: 1.1;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-align: right;
 }
 
-.hud-spacer { flex: 1; }
-
+/* ── Top-right transport + event log ─────────────────────────────────── */
+#hud-tr {
+  top: 14px;
+  right: 14px;
+  width: 268px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 .hud-controls {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(95, 168, 255, 0.18);
 }
 
 .ctrl-btn {
-  height: 28px;
-  padding: 0 10px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: rgba(20, 26, 42, 0.7);
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 5px;
+  border: 1px solid rgba(95, 168, 255, 0.18);
+  background: rgba(14, 22, 38, 0.7);
   color: var(--text-bright);
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.04em;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+  transition: background 0.12s, border-color 0.12s, transform 0.08s, box-shadow 0.12s;
 }
-.ctrl-btn:hover  { background: rgba(40, 50, 78, 0.85); border-color: var(--border-bright); }
-.ctrl-btn:active { transform: scale(0.97); }
-.ctrl-btn.icon   { width: 28px; padding: 0; justify-content: center; }
-.ctrl-btn.micro  { width: 20px; height: 24px; padding: 0; justify-content: center; font-size: 14px; line-height: 1; font-weight: 700; }
-.ctrl-btn.danger        { color: #ffaab5; border-color: rgba(255,101,119,0.35); }
-.ctrl-btn.danger:hover  { background: rgba(80,20,30,0.45); border-color: rgba(255,101,119,0.6); }
-.ctrl-btn.active        { background: rgba(95,168,255,0.16); border-color: var(--accent); color: var(--accent); }
+.ctrl-btn:hover  {
+  background: rgba(34, 50, 84, 0.85);
+  border-color: rgba(95, 168, 255, 0.55);
+  box-shadow: 0 0 12px rgba(95, 168, 255, 0.25);
+}
+.ctrl-btn:active { transform: scale(0.96); }
+.ctrl-btn.icon   { width: 26px; padding: 0; justify-content: center; }
+.ctrl-btn.danger        { color: #ffaab5; border-color: rgba(255,101,119,0.32); }
+.ctrl-btn.danger:hover  { background: rgba(80,20,30,0.55); border-color: rgba(255,101,119,0.6); box-shadow: 0 0 12px rgba(255,101,119,0.3); }
+.ctrl-btn.active        { background: rgba(95,168,255,0.18); border-color: var(--accent); color: var(--accent); }
+
+.speed-display {
+  min-width: 30px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-bright);
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  background: rgba(8, 14, 26, 0.7);
+  border: 1px solid rgba(95, 168, 255, 0.16);
+  border-radius: 4px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0 6px;
+  margin: 0 1px;
+}
+
+/* Event log (replaces ephemeral toasts in top-right) */
+.event-log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  max-height: 168px;
+  overflow: hidden;
+}
+.event-empty {
+  color: var(--text-faint);
+  font-style: italic;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 4px 0;
+}
+.event-row {
+  display: grid;
+  grid-template-columns: 38px 14px 1fr;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid rgba(95, 168, 255, 0.06);
+  animation: event-in 0.32s cubic-bezier(.2, .8, .4, 1.05);
+}
+.event-row:last-child { border-bottom: none; }
+.event-time {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  font-size: 9.5px;
+  font-weight: 600;
+}
+.event-icon {
+  color: var(--accent);
+  font-size: 11px;
+  text-align: center;
+}
+.event-msg {
+  color: var(--text-bright);
+  font-size: 10px;
+}
+.event-msg b {
+  font-weight: 700;
+  color: var(--text-bright);
+}
+.event-msg em {
+  color: var(--text-dim);
+  font-style: normal;
+}
+.event-row.event-war   .event-icon { color: var(--c-predator); text-shadow: 0 0 6px rgba(225, 82, 82, 0.6); }
+.event-row.event-peace .event-icon { color: var(--good);       text-shadow: 0 0 6px rgba(108, 213, 140, 0.6); }
+.event-row.event-tribe .event-icon { color: var(--c-skill);    text-shadow: 0 0 6px rgba(95, 216, 255, 0.5); }
+.event-row.event-skill .event-icon { color: var(--c-skill);    text-shadow: 0 0 6px rgba(95, 216, 255, 0.5); }
+.event-row.event-trait .event-icon { color: var(--c-trait);    text-shadow: 0 0 6px rgba(255, 211, 77, 0.5); }
+.event-row.fade-out    { opacity: 0; transition: opacity 0.4s; }
+@keyframes event-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Bottom-center resource bars ─────────────────────────────────────── */
+#hud-bottom {
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 14px;
+}
+.resbar {
+  display: grid;
+  grid-template-columns: 16px auto 110px 36px;
+  align-items: center;
+  gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+}
+.resbar-icon { font-size: 13px; line-height: 1; }
+.resbar-label {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-size: 9px;
+  white-space: nowrap;
+}
+.resbar-meter {
+  position: relative;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(95, 168, 255, 0.15);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.resbar-meter i {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  display: block;
+  width: 0%;
+  border-radius: 1px;
+  transition: width 0.4s ease;
+  box-shadow: 0 0 8px currentColor;
+  opacity: 0.9;
+}
+.resbar-value {
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+/* ── Bottom-right world seed ─────────────────────────────────────────── */
+#hud-seed {
+  bottom: 16px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px 8px 14px;
+}
+.hud-seed-label {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.hud-seed-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--text-bright);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.hud-seed-roll {
+  width: 22px; height: 22px;
+  background: rgba(14, 22, 38, 0.7);
+  border: 1px solid rgba(95, 168, 255, 0.22);
+  border-radius: 4px;
+  color: var(--text-bright);
+  cursor: pointer;
+  display: grid; place-items: center;
+  transition: background 0.12s, border-color 0.12s, transform 0.08s, box-shadow 0.12s;
+}
+.hud-seed-roll:hover {
+  background: rgba(34, 50, 84, 0.85);
+  border-color: rgba(95, 168, 255, 0.55);
+  box-shadow: 0 0 10px rgba(95, 168, 255, 0.3);
+  transform: rotate(-12deg);
+}
+
+/* ── Bottom-left FPS readout (small) ─────────────────────────────────── */
+#hud-fps {
+  position: absolute;
+  bottom: 16px;
+  left: 14px;
+  z-index: 5;
+  padding: 4px 9px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: rgba(8, 14, 26, 0.7);
+  border: 1px solid rgba(95, 168, 255, 0.16);
+  border-radius: 4px;
+  pointer-events: none;
+  font-weight: 600;
+}
+#hud-fps span {
+  color: var(--text-bright);
+  font-weight: 700;
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+}
 
 /* Thronglet awareness HUD badge — appears once Stage 1 is reached so the
    player has unmissable confirmation the awareness layer is running. */
@@ -403,23 +683,25 @@ html, body {
   text-transform: uppercase;
 }
 
-/* Floating control (brush size) */
+/* Floating control (brush size) — sits above the bottom resource bar
+   when the user is painting terrain. */
 .floating-control {
   position: absolute;
-  bottom: 14px; left: 50%;
+  bottom: 70px;
+  left: 50%;
   transform: translateX(-50%);
   display: none;
   align-items: center;
   gap: 10px;
   padding: 6px 14px;
-  background: rgba(15, 20, 32, 0.85);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(8px);
+  background: rgba(8, 14, 26, 0.86);
+  border: 1px solid rgba(95, 168, 255, 0.22);
+  backdrop-filter: blur(8px) saturate(130%);
   border-radius: 30px;
   font-size: 11px;
   color: var(--text);
   z-index: 6;
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 8px 24px -8px rgba(0,0,0,0.6);
 }
 .floating-control.visible { display: inline-flex; }
 .floating-label {
@@ -444,28 +726,27 @@ html, body {
 
 #coords {
   position: absolute;
-  bottom: 12px; left: 14px;
-  padding: 4px 10px;
-  background: rgba(15, 20, 32, 0.7);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 9px;
+  background: rgba(8, 14, 26, 0.7);
+  border: 1px solid rgba(95, 168, 255, 0.18);
+  border-radius: 4px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--text-dim);
-  letter-spacing: 0.04em;
   pointer-events: none;
-  z-index: 3;
+  z-index: 4;
+  font-weight: 600;
 }
 
-/* Toast notifications */
+/* Toast notifications — superseded by the persistent #event-log inside #hud-tr.
+   Hidden but kept in the DOM so the legacy Toaster.show() doesn't blow up. */
 #toast-host {
-  position: absolute;
-  top: 70px; right: 16px;
-  display: flex; flex-direction: column;
-  gap: 6px;
-  pointer-events: none;
-  max-width: 280px;
-  z-index: 6;
+  display: none;
 }
 .toast {
   pointer-events: auto;
@@ -534,7 +815,7 @@ html, body {
 #moment-attribution {
   position: absolute;
   right: 14px;
-  bottom: 142px;     /* sits above the minimap */
+  bottom: 70px;     /* sits above the world-seed panel */
   z-index: 7;
   display: none;
   align-items: center;
@@ -564,7 +845,7 @@ html, body {
 #moment-subtitle {
   position: absolute;
   left: 50%;
-  bottom: 56px;
+  bottom: 110px;
   transform: translateX(-50%);
   z-index: 7;
   max-width: min(720px, 78vw);
@@ -612,31 +893,37 @@ html, body {
   border-radius: 2px;
 }
 
-/* Minimap */
+/* Minimap — bottom-left, in the same chunky panel chrome as the rest of the HUD */
 #minimap-host {
   position: absolute;
-  bottom: 14px; right: 14px;
-  background: rgba(15, 20, 32, 0.85);
-  border: 1px solid var(--border);
+  bottom: 16px;
+  left: 14px;
+  z-index: 5;
+  padding: 8px 9px 7px;
+  background: linear-gradient(180deg, rgba(8, 14, 26, 0.86), rgba(6, 10, 20, 0.92));
+  border: 1px solid rgba(95, 168, 255, 0.22);
   border-radius: 8px;
-  padding: 8px 8px 6px;
-  z-index: 3;
-  box-shadow: var(--shadow-soft);
-  backdrop-filter: blur(6px);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35) inset,
+    0 8px 28px -8px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px) saturate(130%);
 }
 .minimap-title {
-  font-size: 9px;
-  letter-spacing: 0.14em;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: #aac6ff;
   margin-bottom: 4px;
-  font-weight: 600;
+  font-weight: 700;
+  text-align: center;
 }
 #minimap-canvas {
   display: block;
   width: 180px; height: 120px;
-  border-radius: 4px;
-  background: #07090f;
+  border-radius: 3px;
+  background: #060912;
+  border: 1px solid rgba(95, 168, 255, 0.10);
 }
 
 /* ── Sidebar ─────────────────────────────────────────────────────────── */
@@ -1191,12 +1478,18 @@ html, body {
 ::-webkit-scrollbar-thumb:hover { background: rgba(82,102,140,0.5); }
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  /* Small screens: drop the awareness column from the bottom bar to save room */
+  #hud-bottom .resbar[data-key="awareness"] { display: none; }
+}
 @media (max-width: 900px) {
   :root { --sb-w: 220px; }
   #minimap-host { display: none; }
+  #hud-tl, #hud-tr { width: 200px; }
 }
 @media (max-width: 700px) {
   #app { grid-template-columns: 56px 1fr 0; }
   #sidebar { display: none; }
-  #hud .hud-block { display: none; }
+  #hud-tl, #hud-bottom, #hud-seed, #world-title .world-title-tag { display: none; }
+  #hud-tr { width: 220px; }
 }

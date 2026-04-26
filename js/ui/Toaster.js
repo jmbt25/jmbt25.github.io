@@ -1,26 +1,24 @@
 /**
- * Toaster — small ephemeral notifications surfaced in the top-right of the
- * canvas. Subscribes to interesting sim events (births of special creatures,
- * tribe lifecycle, war/peace) and shows a short message for each.
+ * Toaster — persistent event feed in the top-right panel. Subscribes to
+ * interesting sim events (special births, tribe lifecycle, war/peace,
+ * Thronglet stages) and appends a timestamped row to #event-log.
  *
- * Toasts are throttled so the screen never floods, and identical messages
- * within the throttle window are coalesced.
+ * Identical messages within SAME_KEY_THROTTLE are coalesced. Old rows are
+ * trimmed once MAX_LOG_ROWS is exceeded.
  */
 import { eventBus } from '../core/eventBus.js';
 import { TYPE, JOSHUA_NAME } from '../core/constants.js';
 
-const TOAST_LIFETIME_MS = 4200;
-const MAX_TOASTS        = 4;
+const MAX_LOG_ROWS      = 12;
 const SAME_KEY_THROTTLE = 1500;   // suppress identical messages within this window
 
 export class Toaster {
-  constructor(civ, hostId = 'toast-host') {
+  constructor(civ, hostId = 'event-log') {
     this.civ = civ;
     this.host = document.getElementById(hostId);
     this._lastByKey = new Map();
     this._knownTribes = new Set();
     this._warPairs = new Set();      // "minId|maxId" for currently-known wars
-    this._primed = false;            // suppresses the first scan to avoid
 
     if (!this.host) return;
 
@@ -52,22 +50,30 @@ export class Toaster {
     if (now - last < SAME_KEY_THROTTLE) return;
     this._lastByKey.set(key, now);
 
+    // First real event clears the "awaiting events…" placeholder.
+    const empty = this.host.querySelector('.event-empty');
+    if (empty) empty.remove();
+
     const node = document.createElement('div');
-    node.className = 'toast' + (opts.kind ? ` toast-${opts.kind}` : '');
+    node.className = 'event-row' + (opts.kind ? ` event-${opts.kind}` : '');
     node.innerHTML = `
-      <div class="toast-icon">${opts.icon ?? 'ℹ️'}</div>
-      <div class="toast-msg">${message}</div>
+      <span class="event-time">${this._timestamp()}</span>
+      <span class="event-icon">${opts.icon ?? '·'}</span>
+      <span class="event-msg">${message}</span>
     `;
+    // Newest on top
     this.host.prepend(node);
 
-    while (this.host.children.length > MAX_TOASTS) {
+    while (this.host.children.length > MAX_LOG_ROWS) {
       this.host.removeChild(this.host.lastChild);
     }
+  }
 
-    setTimeout(() => {
-      node.classList.add('fade-out');
-      setTimeout(() => node.remove(), 350);
-    }, TOAST_LIFETIME_MS);
+  _timestamp() {
+    const d = new Date();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
   }
 
   _onBorn(entity, parent) {
@@ -154,7 +160,9 @@ export class Toaster {
     this._knownTribes.clear();
     this._warPairs.clear();
     this._lastByKey.clear();
-    if (this.host) this.host.innerHTML = '';
+    if (this.host) {
+      this.host.innerHTML = '<div class="event-empty">awaiting events…</div>';
+    }
     if (this.civ) {
       for (const t of this.civ.tribes.values()) {
         this._knownTribes.add(t.id);

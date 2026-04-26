@@ -10,17 +10,24 @@ import { EntityRegistry }       from './entities/EntityRegistry.js';
 import { SimulationManager }    from './sim/SimulationManager.js';
 import { CivilizationManager }  from './sim/CivilizationManager.js';
 import { Renderer3D }           from './render/Renderer3D.js';
-import { UIManager }            from './ui/UIManager.js';
+import { UIManager, generateSeed, seedToInt } from './ui/UIManager.js';
 import { ThrongletsManager }    from './sim/Thronglets.js';
 import { SIM_TICK_MS, TYPE }    from './core/constants.js';
 
 const canvas = document.getElementById('world-canvas');
 resizeCanvas();
 
+// Seed: prefer ?seed=… in the URL (so you can share a world by sending a
+// link), otherwise roll a fresh one for this visit.
+const urlSeed = new URLSearchParams(location.search).get('seed');
+const initialSeed = (urlSeed && /^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/i.test(urlSeed))
+  ? urlSeed.toUpperCase()
+  : generateSeed();
+
 const world    = new World();
 const registry = new EntityRegistry(world);
 
-WorldGen.generate(world);
+WorldGen.generate(world, seedToInt(initialSeed));
 
 const renderer = new Renderer3D(canvas, world, registry);
 const civ      = new CivilizationManager(registry, world);
@@ -30,16 +37,18 @@ const sim = new SimulationManager(world, registry, civ);
 
 seedWorld(world, registry);
 
-const ui = new UIManager({ canvas, world, registry, renderer, sim, civ });
-
 // Thronglets — emergent awareness overlay. Self-contained; safe to remove
-// this block + the two new files (Thronglets.js, ThrongletGlyphs.js) and
-// the small _thronglet hooks in Human.js to disable the feature entirely.
-// Runtime opt-out: ?normal=1 URL param, Ctrl+Shift+T, or window.__thronglets.disable().
+// this block + the two files (Thronglets.js, ThrongletGlyphs.js) and the
+// small _thronglet hooks in Human.js to disable the feature entirely.
+// Runtime opt-out: ?normal=1 URL param, Ctrl+Shift+T, or
+// window.__thronglets.disable(). Created BEFORE UIManager so the HUD's
+// awareness/watchers readouts can read live values.
 const thronglets = new ThrongletsManager({
   registry, world, civ, sim, renderer, glyphs: renderer.thrGlyphs,
 });
 window.__thronglets = thronglets;
+
+const ui = new UIManager({ canvas, world, registry, renderer, sim, civ, thronglets, initialSeed });
 
 let simInterval = setInterval(() => sim.update(), SIM_TICK_MS);
 

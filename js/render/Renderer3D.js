@@ -1,4 +1,8 @@
 import * as THREE from 'three';
+import { EffectComposer }   from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass }       from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass }  from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass }       from 'three/addons/postprocessing/OutputPass.js';
 import { Camera3D } from './Camera3D.js';
 import { TileRenderer3D } from './TileRenderer3D.js';
 import { EntityRenderer3D } from './EntityRenderer3D.js';
@@ -91,6 +95,22 @@ export class Renderer3D {
     this._raycaster = new THREE.Raycaster();
     this._ndc = new THREE.Vector2();
     this._fogScratch = new THREE.Color();
+
+    // Postprocessing — soft bloom for the cyan Thronglet beacon, fireflies,
+    // sun disc, and any window-glow on huts. Threshold is high enough that
+    // ordinary terrain doesn't bloom; strength keeps things tasteful.
+    this.composer = new EffectComposer(this.webglRenderer);
+    this.composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.composer.setSize(w, h);
+    this.composer.addPass(new RenderPass(this.scene, this.camera3d.camera));
+    this.bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(w, h),
+      0.55,    // strength
+      0.45,    // radius
+      0.78,    // threshold (only bright pixels bloom)
+    );
+    this.composer.addPass(this.bloomPass);
+    this.composer.addPass(new OutputPass());
   }
 
   render() {
@@ -115,11 +135,13 @@ export class Renderer3D {
     this.statusBubbles.update(this.registry, this.tileRenderer3d);
     this.effects.update();
     this.thrGlyphs.update();
-    this.webglRenderer.render(this.scene, this.camera3d.camera);
+    this.composer.render();
   }
 
   resize(w, h) {
     this.webglRenderer.setSize(w, h, false);
+    this.composer.setSize(w, h);
+    this.bloomPass.setSize(w, h);
     this.camera3d.resize(w, h);
   }
 

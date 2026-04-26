@@ -46,161 +46,145 @@ function merge(geoms) {
 
 // ── Body assemblies ───────────────────────────────────────────────────────
 //
-// Herbivore — fluffy sheep. Wider body with a wool-look head bobble, stubby legs.
+// Voxel style — every creature/hut is composed of axis-aligned boxes only.
+// No spheres/capsules/cones (apart from the pyramid hut-roof, which IS a
+// 4-sided cone i.e. a square pyramid). This matches the chunky cube look of
+// the world's terrain.
+//
+// Local space convention: +X = forward, +Y = up, +Z = right. The renderer
+// applies one transform per entity; per-part offsets are baked into the
+// merged geometry below.
+
+// Herbivore — chunky cube sheep with wool tufts.
 function buildHerbivoreBody() {
-  const body  = ellipsoid(0.36, 0.30, 0.28, 0, 0.34, 0);
-  const wool1 = sphere(0.10, 0.18, 0.50, 0.10);
-  const wool2 = sphere(0.10, 0.18, 0.50,-0.10);
-  const wool3 = sphere(0.09,-0.20, 0.50, 0.12);
-  const wool4 = sphere(0.09,-0.20, 0.50,-0.12);
-  const legFL = cyl(0.06, 0.06, 0.18,  0.20, 0,  0.16);
-  const legFR = cyl(0.06, 0.06, 0.18,  0.20, 0, -0.16);
-  const legBL = cyl(0.06, 0.06, 0.18, -0.20, 0,  0.16);
-  const legBR = cyl(0.06, 0.06, 0.18, -0.20, 0, -0.16);
-  const tail  = sphere(0.08, -0.36, 0.36, 0);
+  const body  = box(0.50, 0.30, 0.38, 0,    0.34, 0);
+  const wool1 = box(0.18, 0.18, 0.18, 0.18, 0.52,  0.10);
+  const wool2 = box(0.18, 0.18, 0.18, 0.18, 0.52, -0.10);
+  const wool3 = box(0.16, 0.16, 0.16,-0.18, 0.52,  0.12);
+  const wool4 = box(0.16, 0.16, 0.16,-0.18, 0.52, -0.12);
+  const legFL = box(0.09, 0.18, 0.09,  0.18, 0.09,  0.14);
+  const legFR = box(0.09, 0.18, 0.09,  0.18, 0.09, -0.14);
+  const legBL = box(0.09, 0.18, 0.09, -0.18, 0.09,  0.14);
+  const legBR = box(0.09, 0.18, 0.09, -0.18, 0.09, -0.14);
+  const tail  = box(0.09, 0.09, 0.09, -0.30, 0.40,  0);
   return merge([body, wool1, wool2, wool3, wool4, legFL, legFR, legBL, legBR, tail]);
 }
 function buildHerbivoreHead() {
-  const skull = sphere(0.16, 0.40, 0.42, 0);
-  const muzz  = ellipsoid(0.07, 0.06, 0.06, 0.55, 0.36, 0);
-  const earL  = cone(0.05, 0.12, 0.36, 0.55,  0.10, 4);
-  const earR  = cone(0.05, 0.12, 0.36, 0.55, -0.10, 4);
+  const skull = box(0.22, 0.22, 0.22, 0.40, 0.42, 0);
+  const muzz  = box(0.10, 0.08, 0.10, 0.55, 0.36, 0);
+  const earL  = box(0.05, 0.10, 0.05, 0.36, 0.56,  0.10);
+  const earR  = box(0.05, 0.10, 0.05, 0.36, 0.56, -0.10);
   return merge([skull, muzz, earL, earR]);
 }
 function buildHerbivoreEyes() {
-  // White sclera spheres only — pupils are a separate part rendered black.
-  const eyeL = sphere(0.034, 0.510, 0.46,  0.085, 8, 7);
-  const eyeR = sphere(0.034, 0.510, 0.46, -0.085, 8, 7);
+  // White sclera squares only — pupils are a separate part rendered black.
+  const eyeL = box(0.03, 0.05, 0.05, 0.512, 0.46,  0.085);
+  const eyeR = box(0.03, 0.05, 0.05, 0.512, 0.46, -0.085);
   return merge([eyeL, eyeR]);
 }
 function buildHerbivorePupils() {
-  const pL = sphere(0.018, 0.540, 0.46,  0.090, 6, 6);
-  const pR = sphere(0.018, 0.540, 0.46, -0.090, 6, 6);
+  const pL = box(0.02, 0.025, 0.025, 0.527, 0.46,  0.090);
+  const pR = box(0.02, 0.025, 0.025, 0.527, 0.46, -0.090);
   return merge([pL, pR]);
 }
 
-// Predator — wolfy. Lean body, longer snout, bushy tail.
+// Predator — chunky cube wolf. Boxier shoulders, longer snout, blockier tail.
 function buildPredatorBody() {
-  const body  = ellipsoid(0.42, 0.22, 0.22, 0, 0.30, 0);
-  const ruff  = ellipsoid(0.13, 0.18, 0.22, 0.32, 0.34, 0);   // shoulder ruff
-  const legFL = cyl(0.06, 0.06, 0.26,  0.24, 0,  0.16);
-  const legFR = cyl(0.06, 0.06, 0.26,  0.24, 0, -0.16);
-  const legBL = cyl(0.06, 0.06, 0.26, -0.24, 0,  0.16);
-  const legBR = cyl(0.06, 0.06, 0.26, -0.24, 0, -0.16);
-  // Bushy tail (cone + sphere tip) angled up
-  const tailG = new THREE.ConeGeometry(0.07, 0.32, 6);
-  tailG.rotateZ(Math.PI / 2 + 0.25);
-  tailG.translate(-0.50, 0.42, 0);
-  const tailTip = sphere(0.085, -0.66, 0.50, 0, 7, 6);
-  return merge([body, ruff, legFL, legFR, legBL, legBR, tailG, tailTip]);
+  const body  = box(0.58, 0.24, 0.28, 0,    0.30, 0);
+  const ruff  = box(0.20, 0.30, 0.30, 0.20, 0.34, 0);   // shoulder ruff
+  const legFL = box(0.09, 0.26, 0.09,  0.22, 0.13,  0.14);
+  const legFR = box(0.09, 0.26, 0.09,  0.22, 0.13, -0.14);
+  const legBL = box(0.09, 0.26, 0.09, -0.22, 0.13,  0.14);
+  const legBR = box(0.09, 0.26, 0.09, -0.22, 0.13, -0.14);
+  // Bushy stepped tail — cube stack going up and back.
+  const tail1 = box(0.10, 0.12, 0.12, -0.36, 0.38, 0);
+  const tail2 = box(0.10, 0.12, 0.12, -0.50, 0.50, 0);
+  const tail3 = box(0.10, 0.12, 0.12, -0.62, 0.62, 0);
+  return merge([body, ruff, legFL, legFR, legBL, legBR, tail1, tail2, tail3]);
 }
 function buildPredatorHead() {
-  const skull = sphere(0.18, 0.46, 0.40, 0);
-  const snout = (() => {
-    const g = new THREE.ConeGeometry(0.10, 0.22, 6);
-    g.rotateZ(-Math.PI / 2);
-    g.translate(0.70, 0.36, 0);
-    return g;
-  })();
-  // Triangular ears
-  const earL = cone(0.06, 0.13, 0.42, 0.55,  0.12, 4);
-  const earR = cone(0.06, 0.13, 0.42, 0.55, -0.12, 4);
+  const skull = box(0.24, 0.22, 0.24, 0.42, 0.40, 0);
+  const snout = box(0.18, 0.12, 0.14, 0.62, 0.36, 0);
+  const earL  = box(0.06, 0.10, 0.06, 0.40, 0.56,  0.10);
+  const earR  = box(0.06, 0.10, 0.06, 0.40, 0.56, -0.10);
   return merge([skull, snout, earL, earR]);
 }
 function buildPredatorEyes() {
-  const eyeL = sphere(0.030, 0.59, 0.45,  0.10, 8, 7);
-  const eyeR = sphere(0.030, 0.59, 0.45, -0.10, 8, 7);
+  const eyeL = box(0.03, 0.04, 0.04, 0.546, 0.43,  0.10);
+  const eyeR = box(0.03, 0.04, 0.04, 0.546, 0.43, -0.10);
   return merge([eyeL, eyeR]);
 }
 function buildPredatorPupils() {
-  const pL = sphere(0.018, 0.620, 0.46,  0.105, 6, 6);
-  const pR = sphere(0.018, 0.620, 0.46, -0.105, 6, 6);
+  const pL = box(0.02, 0.025, 0.025, 0.561, 0.43,  0.105);
+  const pR = box(0.02, 0.025, 0.025, 0.561, 0.43, -0.105);
   return merge([pL, pR]);
 }
 
-// Human — torso with belt, arms, legs. Eyes + hair are separate parts.
+// Human — Minecraft-style: blocky torso, head, arms, legs, hat-style hair.
 function buildHumanBody() {
-  const torso = (() => {
-    const g = new THREE.CapsuleGeometry(0.13, 0.30, 4, 9);
-    g.translate(0, 0.55, 0);
-    return g;
-  })();
-  // Belt — a thin contrasting band around the waist
-  const belt = (() => {
-    const g = new THREE.CylinderGeometry(0.142, 0.142, 0.05, 12);
-    g.translate(0, 0.42, 0);
-    return g;
-  })();
-  const legL = cyl(0.07, 0.07, 0.34,  0.0, 0,  0.08);
-  const legR = cyl(0.07, 0.07, 0.34,  0.0, 0, -0.08);
-  const armL = (() => {
-    const g = new THREE.CapsuleGeometry(0.05, 0.22, 4, 8);
-    g.translate(0, 0.55, 0.20);
-    return g;
-  })();
-  const armR = (() => {
-    const g = new THREE.CapsuleGeometry(0.05, 0.22, 4, 8);
-    g.translate(0, 0.55, -0.20);
-    return g;
-  })();
+  const torso = box(0.20, 0.36, 0.20, 0,    0.55, 0);
+  // Belt — thin contrasting band around the waist
+  const belt  = box(0.22, 0.05, 0.22, 0,    0.39, 0);
+  const legL  = box(0.10, 0.34, 0.10,  0.0, 0.17,  0.06);
+  const legR  = box(0.10, 0.34, 0.10,  0.0, 0.17, -0.06);
+  const armL  = box(0.08, 0.30, 0.08,  0.0, 0.55,  0.18);
+  const armR  = box(0.08, 0.30, 0.08,  0.0, 0.55, -0.18);
   return merge([torso, belt, legL, legR, armL, armR]);
 }
 function buildHumanHead() {
-  return sphere(0.13, 0, 0.92, 0, 14, 11);
+  return box(0.22, 0.22, 0.22, 0, 0.92, 0);
 }
 function buildHumanEyes() {
-  const eyeL = sphere(0.024, 0.115, 0.95,  0.055, 8, 7);
-  const eyeR = sphere(0.024, 0.115, 0.95, -0.055, 8, 7);
+  // Two black-on-skin pixel eyes — sclera is small white square.
+  const eyeL = box(0.025, 0.04, 0.04, 0.115, 0.95,  0.055);
+  const eyeR = box(0.025, 0.04, 0.04, 0.115, 0.95, -0.055);
   return merge([eyeL, eyeR]);
 }
 function buildHumanPupils() {
-  const pL = sphere(0.013, 0.130, 0.95,  0.060, 6, 6);
-  const pR = sphere(0.013, 0.130, 0.95, -0.060, 6, 6);
+  const pL = box(0.018, 0.025, 0.025, 0.130, 0.95,  0.060);
+  const pR = box(0.018, 0.025, 0.025, 0.130, 0.95, -0.060);
   return merge([pL, pR]);
 }
 function buildHumanHair() {
-  // Cap-style hair: a half-sphere on top of the head, slightly forward-leaning.
-  const g = new THREE.SphereGeometry(0.135, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2);
-  g.translate(0.02, 0.96, 0);
-  return g;
+  // Cap-style hair: thin slab on top of the head, slightly larger so it
+  // overhangs like a hat brim.
+  return box(0.24, 0.06, 0.24, 0, 1.06, 0);
 }
 
-// Plants — kept as one mesh for the simulated plant (unrelated to terrain
-// decorations).  A trunk + 3-cone evergreen.
+// Plants — voxel evergreen: trunk box + stacked foliage cubes.
 function buildPlantTrunk() {
-  return cyl(0.06, 0.10, 0.30, 0, 0, 0, 6);
+  return box(0.10, 0.30, 0.10, 0, 0.15, 0);
 }
 function buildPlantFoliage() {
-  const c1 = cone(0.30, 0.50, 0, 0.22, 0, 6);
-  const c2 = cone(0.22, 0.40, 0, 0.55, 0, 6);
-  const c3 = cone(0.14, 0.30, 0, 0.85, 0, 6);
-  return merge([c1, c2, c3]);
+  // Three stepped cube layers — wider at the base, narrower up top.
+  const f1 = box(0.42, 0.22, 0.42, 0, 0.38, 0);
+  const f2 = box(0.30, 0.20, 0.30, 0, 0.62, 0);
+  const f3 = box(0.18, 0.18, 0.18, 0, 0.84, 0);
+  return merge([f1, f2, f3]);
 }
 
-// Hut — stone foundation + wooden walls + thatched roof + door + chimney
+// Hut — stone foundation + wooden walls + pyramid roof + door + chimney.
+// The roof stays as a 4-sided cone (i.e. square pyramid) because that IS
+// just a stack of shrinking boxes — perfect for the voxel aesthetic.
 function buildHutFoundation() {
-  // Slightly wider stone ring beneath the walls
-  const g = new THREE.CylinderGeometry(0.50, 0.55, 0.08, 8);
-  g.translate(0, 0.04, 0);
-  return g;
+  return box(0.84, 0.10, 0.84, 0, 0.05, 0);
 }
 function buildHutWalls() {
-  return box(0.7, 0.42, 0.7, 0, 0.29, 0);
+  return box(0.70, 0.42, 0.70, 0, 0.29, 0);
 }
 function buildHutRoof() {
-  // Thicker pyramid roof + small ridge ball
-  const g = new THREE.ConeGeometry(0.58, 0.40, 4);
+  // Pyramid roof — 4-sided cone, square base, steeper than before to read
+  // as voxel from any angle.
+  const g = new THREE.ConeGeometry(0.58, 0.42, 4);
   g.rotateY(Math.PI / 4);
-  g.translate(0, 0.70, 0);
+  g.translate(0, 0.71, 0);
   return g;
 }
 function buildHutDoor() {
   return box(0.04, 0.22, 0.16, 0.36, 0.13, 0);
 }
 function buildHutChimney() {
-  const g = new THREE.BoxGeometry(0.10, 0.22, 0.10);
-  g.translate(-0.18, 0.85, -0.18);
-  return g;
+  return box(0.10, 0.24, 0.10, -0.18, 0.86, -0.18);
 }
 
 // ── Color helpers ─────────────────────────────────────────────────────────

@@ -48,15 +48,19 @@ const TYPE_EMOJI = {
 };
 
 export class UIManager {
-  constructor({ canvas, world, registry, renderer, sim, civ }) {
-    this.canvas   = canvas;
-    this.world    = world;
-    this.registry = registry;
-    this.sim      = sim;
-    this.renderer = renderer;
-    this.civ      = civ;
+  constructor({ canvas, world, registry, renderer, sim, civ, thronglets, initialSeed }) {
+    this.canvas     = canvas;
+    this.world      = world;
+    this.registry   = registry;
+    this.sim        = sim;
+    this.renderer   = renderer;
+    this.civ        = civ;
+    this.thronglets = thronglets ?? null;
 
-    this.brushSize = 1;       // 1, 2, 3, or 5 — controlled by slider 0..3
+    this.brushSize  = 1;       // 1, 2, 3, or 5 — controlled by slider 0..3
+    // Use the seed main.js used for the initial worldgen so the displayed
+    // value matches the actual world that's running.
+    this.worldSeed  = initialSeed ?? generateSeed();
 
     this.toolManager = new ToolManager(
       canvas, world, registry, renderer,
@@ -64,7 +68,7 @@ export class UIManager {
       () => this.brushSize,
     );
 
-    this.statsPanel  = new StatsPanel({ sim, registry });
+    this.statsPanel  = new StatsPanel({ sim, registry, civ, thronglets: this.thronglets });
     this.graph       = new PopulationGraph('graph-canvas', sim.history);
     this.tribesPanel = new TribesPanel(civ);
     this.toaster     = new Toaster(civ);
@@ -76,6 +80,7 @@ export class UIManager {
     this.minimap.onPan = (tx, ty) => this.renderer.panTo(tx, ty);
 
     this._currentInspectee = null;
+    this._renderSeed();
 
     this._bindControls();
     this._bindToolbar();
@@ -120,7 +125,8 @@ export class UIManager {
     document.getElementById('btn-speed-up')?.addEventListener('click', () => this._adjustSpeed(+1));
     document.getElementById('btn-speed-down')?.addEventListener('click', () => this._adjustSpeed(-1));
     document.getElementById('btn-camera-reset')?.addEventListener('click', () => this.renderer.resetCamera());
-    document.getElementById('btn-regenerate')?.addEventListener('click', () => this._regenerate());
+    document.getElementById('btn-regenerate')?.addEventListener('click', () => this._regenerate(true));
+    document.getElementById('btn-reseed')?.addEventListener('click', () => this._regenerate(true));
   }
 
   _bindBrush() {
@@ -217,10 +223,12 @@ export class UIManager {
     if (el) el.textContent = `${this.sim.speed}×`;
   }
 
-  _regenerate() {
+  _regenerate(reseed = false) {
+    if (reseed) this.worldSeed = generateSeed();
+    this._renderSeed();
     this.registry.clear();
     this.civ.reset();
-    WorldGen.generate(this.world);
+    WorldGen.generate(this.world, seedToInt(this.worldSeed));
     this.renderer.rebuildTerrain();
     this.minimap.invalidateTerrain();
     this.sim.tick = 0;
@@ -230,7 +238,15 @@ export class UIManager {
     this._seedWorld();
     this.renderer.highlighted = null;
     this._onInspect(null);
-    this.toaster.show('A new world has been generated', { icon: '🌍', kind: 'tribe', key: 'regen' });
+    this.toaster.show(
+      `New world generated <em>(${this.worldSeed})</em>`,
+      { icon: '🌍', kind: 'tribe', key: `regen-${this.worldSeed}` },
+    );
+  }
+
+  _renderSeed() {
+    const el = document.getElementById('seed-value');
+    if (el) el.textContent = this.worldSeed;
   }
 
   // Called every frame from main.js so the FPS counter stays live.
@@ -248,9 +264,12 @@ export class UIManager {
   }
 
   _refreshHud() {
-    const dayEl = document.getElementById('stat-day');
-    if (dayEl && this.renderer?.skySystem) {
-      dayEl.textContent = `${this.renderer.skySystem.dayCount} · ${this.renderer.skySystem.getTimeLabel()}`;
+    const sky = this.renderer?.skySystem;
+    if (sky) {
+      const dayEl = document.getElementById('stat-day');
+      if (dayEl) dayEl.textContent = `day ${sky.dayCount}`;
+      const envEl = document.getElementById('stat-env');
+      if (envEl) envEl.textContent = (sky.getTimeLabel?.() ?? '—').toUpperCase();
     }
   }
 
@@ -375,4 +394,33 @@ export class UIManager {
     spawnRandom(TYPE.PREDATOR,  10);
     spawnRandom(TYPE.HUMAN,     28);
   }
+}
+
+/**
+ * Generate a 12-char human-friendly world seed in "ABCD-1234-WXYZ" format.
+ * Confusing characters (0/O/I/1) are omitted so the seed is easy to share.
+ */
+export function generateSeed() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const group = () => {
+    let s = '';
+    for (let i = 0; i < 4; i++) {
+      s += alphabet[Math.floor(Math.random() * alphabet.length)];
+    }
+    return s;
+  };
+  return `${group()}-${group()}-${group()}`;
+}
+
+/**
+ * Hash the seed string into a 32-bit unsigned int for the mulberry32 PRNG.
+ * Same string in → same int out, so worlds are reproducible.
+ */
+export function seedToInt(seedStr) {
+  let h = 2166136261 >>> 0;            // FNV-1a
+  for (let i = 0; i < seedStr.length; i++) {
+    h ^= seedStr.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h;
 }

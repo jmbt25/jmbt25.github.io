@@ -106,6 +106,187 @@ window.__thronglets.reset()          // wipe persistence and start fresh
 
 The whole thing is small, vanilla JavaScript split across single-responsibility modules under `js/`.
 
+## How it's built
+
+This section is for anyone who wants to understand the project well enough to fork it, extend it, or steal an idea or two for their own simulation. Everything below is in the source — there are no hidden libraries doing the heavy lifting.
+
+### The architecture in one diagram
+
+```mermaid
+flowchart LR
+  WG[WorldGen] --> W[World grid<br/>per-tile entity sets]
+  W --> ER[EntityRegistry]
+  ER --> SIM[SimulationManager<br/>~12 ticks/sec]
+  SIM -->|sim:tick| EB((eventBus))
+  SIM -->|entity:born / died| EB
+  EB --> CIV[CivilizationManager]
+  EB --> UI[UI panels<br/>+ toaster]
+  EB --> THR[ThrongletsManager]
+  ER --> R3D[Renderer3D<br/>~60 fps]
+  R3D --> CV[WebGL canvas]
+```
+
+Two independent loops drive everything:
+
+- **Simulation loop** — `setInterval` at ~12 ticks/sec. Iterates entities, decides actions, mutates state. Knows nothing about WebGL.
+- **Render loop** — `requestAnimationFrame` at ~60 fps. Reads world state, draws frames. Never mutates anything.
+
+A tiny pub/sub `eventBus` carries discrete events between them (`entity:born`, `entity:died`, `sim:tick`, `thronglet:moment`). That's the whole architecture in one paragraph.
+
+### File layout
+
+```
+index.html              ← single page; importmap loads Three.js from CDN
+js/
+├── main.js             ← wires everything, starts both loops
+├── core/               ← constants, eventBus, seeded RNG
+├── world/              ← grid, terrain types, world generator
+├── entities/           ← Plant, Creature → Herbivore/Predator/Human, Building
+├── sim/                ← SimulationManager, CivilizationManager, Thronglets
+├── render/             ← Three.js layer (terrain, entities, sky, water, …)
+└── ui/                 ← toolbar, HUD, sidebar panels, modals, toaster
+```
+
+No `package.json`, no build step, no bundler. Three.js is pulled straight from jsDelivr via an importmap:
+
+```html
+<script type="importmap">
+{
+  "imports": {
+    "three":         "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="js/main.js"></script>
+```
+
+That's it. Push to GitHub Pages and it's live.
+
+### The five ideas that make it tick
+
+**1 · Two loops, one event bus.**
+`main.js` starts both. The render loop never mutates entities; the sim loop never touches Three.js.
+
+```js
+setInterval(() => sim.update(), SIM_TICK_MS);   // ~12 Hz
+function renderLoop() {
+  renderer.render();
+  ui.tickFrame();
+  requestAnimationFrame(renderLoop);             // ~60 Hz
+}
+requestAnimationFrame(renderLoop);
+```
+
+Communication is one ~15-line pub/sub:
+
+```js
+export const eventBus = {
+  on(event, fn)   { /* … */ },
+  off(event, fn)  { /* … */ },
+  emit(event, d)  { _listeners.get(event)?.forEach(fn => fn(d)); },
+};
+```
+
+That's the entire glue between sim, civ, UI, toaster, and the Black Mirror awareness layer. New subsystems plug in by listening — they don't get plumbed through.
+
+**2 · Smoothing tile-discrete motion.**
+Sim ticks are coarse: a creature is on tile (12, 7) one tick and (13, 7) the next. To stop them teleporting, every successful step records four fields *before* the move:
+
+```js
+_tryStep(world, nx, ny) {
+  if (!world.inBounds(nx, ny) || !world.isPassable(nx, ny)) return false;
+  this.prevTileX      = this.tileX;
+  this.prevTileY      = this.tileY;
+  this.moveStartedAt  = performance.now();
+  this.moveDurationMs = SIM_TICK_MS * this._moveInterval();
+  this.heading        = Math.atan2(ny - this.tileY, nx - this.tileX);
+  world.moveEntityRecord(this, nx, ny);
+  return true;
+}
+```
+
+The renderer reads those and lerps with smoothstep:
+
+```js
+const t = Math.min(1, (now - ent.moveStartedAt) / ent.moveDurationMs);
+const e = t * t * (3 - 2 * t);                          // smoothstep
+const fx = ent.prevTileX + (ent.tileX - ent.prevTileX) * e;
+const fz = ent.prevTileY + (ent.tileY - ent.prevTileY) * e;
+```
+
+Combined with a Y-axis rotation from `heading`, creatures slide and pivot instead of popping between tiles. A tiny `bob = sin(now)` on top adds a walking gait.
+
+**3 · One InstancedMesh per body part.**
+Drawing 500 sheep individually would melt your GPU. Three.js's `InstancedMesh` lets you draw N copies of one geometry in a single GPU call, with per-instance position, rotation, scale, and colour. Each creature type is split into ~4–5 body parts (body, head, sclera, pupils, hair) and gets one InstancedMesh per part. They share the same instance index per logical entity:
+
+```
+herbivore #42  →  body[42]  + head[42]  + sclera[42]  + pupils[42]
+human #17      →  body[17]  + head[17]  + sclera[17]  + pupils[17]  + hair[17]
+hut #9         →  base[9]   + walls[9]  + roof[9]     + door[9]    + chimney[9]
+```
+
+Per-instance HSL jitter on body and head colours means no two sheep look quite alike — they read as a herd of individuals, not clones, even at full zoom.
+
+**4 · Spatial index + deferred mutations.**
+Naïve nearest-creature search is `O(n²)`. Instead, `World.tileEntities[idx]` holds a `Set<entityId>` per tile. Every move calls `world.moveEntityRecord(entity, nx, ny)` which updates two sets. Range queries scan a bounding box of tiles — `O(r²)`, independent of population.
+
+During a tick we *can't* mutate the entity list while iterating it, so kills and births are queued and flushed afterward:
+
+```js
+const toKill = [];
+const toSpawn = [];
+for (const entity of registry.getAll()) {
+  if (!entity.alive) continue;
+  const reqs = entity.tick(world, registry);
+  if (!entity.alive) { toKill.push(entity); continue; }
+  if (reqs.length)   toSpawn.push(...reqs);
+}
+for (const e of toKill)  registry.kill(e);
+for (const r of toSpawn) registry.spawn(r.type, r.x, r.y, r.opts);
+```
+
+This pattern is the difference between "works for 50 entities" and "works for 2,500".
+
+**5 · Layered features, not stacked branches.**
+Civilisations and Thronglet awareness aren't bolted into `Human.tick()` — they sit *outside* the entity loop and listen to events. `CivilizationManager` subscribes to `entity:born` for tribe assignment and `entity:died` for hut bookkeeping. `ThrongletsManager` is even more decoupled — it watches the registry and emits its own events, which the renderer and overlay consume. You can delete the entire Thronglet system by removing three files and a four-line block in `main.js`. The base sim keeps running.
+
+```mermaid
+sequenceDiagram
+  participant H as Human (entity)
+  participant S as SimulationManager
+  participant EB as eventBus
+  participant C as CivilizationManager
+  participant U as UI / Toaster
+  H->>S: tick() — gives birth
+  S->>EB: emit('entity:born', {entity, parent})
+  EB->>C: assignTribe(child, parent)
+  EB->>U: refresh population
+  Note over H,U: Same event, multiple listeners — no entity ever imports UI.
+```
+
+### Extending it: add your own species
+
+Roughly the minimum to get a new creature into the world:
+
+1. **Add a type** in [`js/core/constants.js`](js/core/constants.js):
+   ```js
+   export const TYPE = { /* … */ FISH: 5 };
+   SPECIES[TYPE.FISH] = { maxAge: 300, hungerPerTick: 0.001, /* … */ };
+   ```
+2. **Make a class** in `js/entities/Fish.js` that extends `Creature` (copy `Herbivore.js` as a starting point and tweak `_decideState`).
+3. **Register it** in `EntityRegistry.spawn()` so `spawn(TYPE.FISH, x, y)` returns one.
+4. **Render it** by adding a part list to `EntityRenderer3D` (one InstancedMesh per body part, same instance-index trick).
+5. **(Optional)** add a toolbar button in [`index.html`](index.html) and wire it in `ToolManager`.
+
+You don't need to touch the sim loop, the event bus, or the civ system. That's the payoff for keeping concerns layered.
+
+### What I'd do differently
+
+- **Workers**: the sim is single-threaded JS. At 2,500 entities you can feel it. Moving the tick loop into a Web Worker (with the registry serialised back to the main thread for rendering) would scale to ~10× more entities.
+- **Typed entity arrays**: `Map<id, Entity>` is convenient but cache-unfriendly. A struct-of-arrays layout (parallel `Float32Array`s for x/y/age/hunger) would be ~2–4× faster for the hot path. Premature for this project's scale, but it's where you'd go next.
+- **Save/load**: only Thronglet awareness persists. The full world state would be straightforward to serialise (it's all plain objects), but I haven't done it.
+
 ## Running locally
 
 Any static file server works. The simplest option:
