@@ -6,7 +6,7 @@ And if you watch long enough, the world starts watching you back.
 
 **Live at [jmbt25.github.io](https://jmbt25.github.io)**
 
-🎥 **3-minute architecture walkthrough on YouTube:** [How Mini World Was Built](https://www.youtube.com/watch?v=MrhfNMjAs5Y) *(video + voiceover are AI-generated; the code is mine)*
+🎥 **3-minute architecture walkthrough on YouTube:** [How Mini World Was Built](https://www.youtube.com/watch?v=MrhfNMjAs5Y) *(video + voiceover are AI-generated; the code is mine)* — full transcript in [TRANSCRIPT.md](TRANSCRIPT.md).
 
 No installer, no account, no backend — just open the page and the world starts breathing.
 
